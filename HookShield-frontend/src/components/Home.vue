@@ -9,9 +9,10 @@
   import Table from "@/components/Table.vue";
   
   export default {
-    components: {
-      Table,
-      data() {
+  components: {
+    Table,
+  },
+  data() {
     return {
       tableData: [
         { id: 1, name: 'Alice', age: 25, skills: ['Vue', 'React'], active: true },
@@ -21,6 +22,5 @@
       ],
     };
   },
-    },
-  };
+};
   </script>
