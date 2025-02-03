@@ -1,24 +1,14 @@
 <script setup>
+import NavBar from "@/components/NavBar.vue";
 import { RouterLink, RouterView } from 'vue-router'
+
 </script>
 
 <template>
-  <header>
-    <img alt="Vue logo" class="logo" src="@/assets/logo.svg" width="125" height="125" />
-
-    <div class="wrapper">
-      <nav>
-        <RouterLink to="/">Accueil</RouterLink>
-        <RouterLink to="/stats">Stats</RouterLink>
-        <RouterLink to="/mails">Gestionnaire d'adresses</RouterLink>
-        <RouterLink to="/admin">Administration</RouterLink>
-        <RouterLink to="/param">Paramètres</RouterLink>
-        <RouterLink to="/blist">Blacklist</RouterLink>
-      </nav>
-    </div>
-  </header>
-
+<div>
+  <NavBar />
   <RouterView />
+</div>
 </template>
 
 <style scoped>
