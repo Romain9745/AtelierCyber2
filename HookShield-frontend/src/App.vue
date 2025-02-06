@@ -1,76 +1,55 @@
 <script setup>
-import NavBar from "@/components/NavBar.vue";
-import { RouterLink, RouterView } from 'vue-router'
-
+import Sidebar from "@/components/Sidebar.vue";
+import Navbar from "./components/Navbar.vue";
+import { RouterView } from 'vue-router';
 </script>
 
 <template>
-<div>
-  <NavBar />
-  <RouterView />
-</div>
+  <div class="layout">
+    <header>
+      <Navbar />
+    </header>
+    <main>
+      <div class="sidebar">
+        <Sidebar />
+      </div>
+      <div class="content">
+        <RouterView />
+      </div>
+    </main>
+  </div>
 </template>
 
 <style scoped>
+.layout {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  height: 100vh;
+  overflow: hidden;
+}
+
 header {
-  line-height: 1.5;
-  max-height: 100vh;
+  height: 80px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  z-index: 50;
 }
 
-.logo {
-  display: block;
-  margin: 0 auto 2rem;
+main {
+  display: grid;
+  grid-template-columns: 250px 1fr;
+  height: 100%;
+  overflow: hidden;
 }
 
-nav {
-  width: 100%;
-  font-size: 12px;
-  text-align: center;
-  margin-top: 2rem;
+.sidebar {
+  background: var(--color-sidebar-bg);
+  height: 100%;
+  overflow-y: auto;
+  box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
 }
 
-nav a.router-link-exact-active {
-  color: var(--color-text);
-}
-
-nav a.router-link-exact-active:hover {
-  background-color: transparent;
-}
-
-nav a {
-  display: inline-block;
-  padding: 0 1rem;
-  border-left: 1px solid var(--color-border);
-}
-
-nav a:first-of-type {
-  border: 0;
-}
-
-@media (min-width: 1024px) {
-  header {
-    display: flex;
-    place-items: center;
-    padding-right: calc(var(--section-gap) / 2);
-  }
-
-  .logo {
-    margin: 0 2rem 0 0;
-  }
-
-  header .wrapper {
-    display: flex;
-    place-items: flex-start;
-    flex-wrap: wrap;
-  }
-
-  nav {
-    text-align: left;
-    margin-left: -1rem;
-    font-size: 1rem;
-
-    padding: 1rem 0;
-    margin-top: 1rem;
-  }
+.content {
+  overflow-y: auto;
+  padding: 10px;
 }
 </style>

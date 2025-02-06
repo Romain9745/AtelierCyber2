@@ -1,5 +1,5 @@
 <template>
-    <table class="w-full text-sm text-left rtl:text-right text-gray-500 dark:text-gray-400">
+    <table class="w-full text-sm text-left rtl:text-right text-gray-500 dark:text-gray-400 mt-4">
       <thead class="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
         <tr>
           <th scope="col" class="p-4">
@@ -18,12 +18,11 @@
             class="px-6 py-3 cursor-pointer relative"
             @click="sortData(header)"
             :class="{
-              'text-blue-600': sortKey === header  // Highlight sorted column
+              'text-blue-600': sortKey === header
             }"
           >
             <div class="flex items-center space-x-2">
               <span>{{ header }}</span>
-              <!-- First Chevron (Ascending) -->
               <svg
                 xmlns="http://www.w3.org/2000/svg"
                 fill="none"
@@ -31,8 +30,8 @@
                 stroke="currentColor"
                 class="w-3 h-3 inline-block"
                 :class="{
-                  'font-bold': sortKey === header && sortOrder === 'desc',  // Make chevron bold if selected
-                  'scale-120': sortKey === header && sortOrder === 'desc'// Optionally, scale chevron to make it bigger
+                  'font-bold': sortKey === header && sortOrder === 'desc',
+                  'scale-120': sortKey === header && sortOrder === 'desc'
                 }"
               >
                 <path
@@ -42,7 +41,6 @@
                   d="M19 9l-7 7-7-7"
                 />
               </svg>
-              <!-- Second Chevron (Descending) -->
               <svg
                 xmlns="http://www.w3.org/2000/svg"
                 fill="none"
@@ -50,8 +48,8 @@
                 stroke="currentColor"
                 class="w-3 h-3 inline-block"
                 :class="{
-                  'font-bold': sortKey === header && sortOrder === 'asc',  // Make chevron bold if selected
-                  'scale-120': sortKey === header && sortOrder === 'asc'// Optionally, scale chevron to make it bigger
+                  'font-bold': sortKey === header && sortOrder === 'asc',
+                  'scale-120': sortKey === header && sortOrder === 'asc'
                 }"
               >
                 <path
@@ -69,6 +67,7 @@
         <tr
           v-for="(row, rowIndex) in sorted"
           :key="rowIndex"
+          @click="VizualiseRow(row)"
           class="bg-white border-b dark:bg-gray-800 dark:border-gray-700 border-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600"
         >
           <td class="w-4 p-4">
@@ -100,20 +99,20 @@
         type: Array,
         required: true,
       },
+      headers: {
+      type: Array,
+      required: true,
+    },
     },
     data() {
       return {
-        sortKey: '', // Column to sort by
-        sortOrder: 'asc', // Sorting order (asc or desc)
-        sorted: [...this.data], // Copy of the original data to sort
+        sortKey: '',
+        sortOrder: 'asc',
+        sorted: [...this.data],
       };
     },
-    computed: {
-      headers() {
-        return this.data.length > 0 ? Object.keys(this.data[0]) : [];
-      },
-    },
     methods: {
+      // Fonction pour trier les données dans le tableau
         sortData(header) {
             if (this.sortKey === header) {
                 this.sortOrder = this.sortOrder === 'asc' ? 'desc' : 'asc';
@@ -121,8 +120,6 @@
                 this.sortKey = header;
                 this.sortOrder = 'asc';
             }
-
-            console.log(this.sortKey, this.sortOrder);
 
  
             this.sorted.sort((a, b) => {
@@ -133,7 +130,11 @@
                 });
                 return this.sortOrder === 'asc' ? comparison : -comparison;
             });
-        }
+        },
+        // Fonction pour visualiser une ligne
+        VizualiseRow(row) {
+          this.$emit('row-click', row);
+        },
     },
   };
   </script>
