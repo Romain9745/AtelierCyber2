@@ -1,0 +1,21 @@
+
+
+services:
+  mariadb:
+    image: mariadb:latest
+    container_name: hookshield_db
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: "admin123"
+      MYSQL_DATABASE: Hookshield
+      MYSQL_USER: "hookadmin"
+      MYSQL_PASSWORD: "admin123"
+    ports:
+      - "3306:3306"  # Redirection du port 3306 de la machine hôte vers le port 3306 du conteneur
+    volumes:
+      - mariadb_data:/var/lib/mysql
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+
+volumes:
+  mariadb_data:
+    driver: local
