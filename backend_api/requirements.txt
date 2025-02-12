@@ -1,0 +1,6 @@
+fastapi
+uvicorn
+imaplib2
+google-auth
+google_auth_oauthlib
+msal
