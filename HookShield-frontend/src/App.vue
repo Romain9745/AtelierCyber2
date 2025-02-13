@@ -1,16 +1,18 @@
 <script setup>
 import Sidebar from "@/components/Sidebar.vue";
 import Navbar from "./components/Navbar.vue";
-import { RouterView } from 'vue-router';
+import { RouterView, useRoute } from 'vue-router';
+
+const route = useRoute();
 </script>
 
 <template>
-  <div class="layout">
-    <header>
+  <div v-bind:class="[route.path === '/login' ? 'login_layout' : 'layout']">
+    <header v-if="route.path !== '/login'">
       <Navbar />
     </header>
-    <main>
-      <div class="sidebar">
+    <main v-bind:class="[route.path === '/login' ? 'login_layout' : 'main']">
+      <div class="sidebar" v-if="route.path !== '/login'">
         <Sidebar />
       </div>
       <div class="content">
@@ -24,8 +26,17 @@ import { RouterView } from 'vue-router';
 .layout {
   display: grid;
   grid-template-rows: auto 1fr;
+  grid-template-columns: 1fr;
   height: 100vh;
   overflow: hidden;
+}
+
+.login_layout {
+  display: flex;
+  justify-content: center;
+  align-items: center; 
+  height: 100vh; 
+  background-color: #f4f4f4; 
 }
 
 header {
@@ -34,11 +45,12 @@ header {
   z-index: 50;
 }
 
-main {
+.main {
   display: grid;
   grid-template-columns: 250px 1fr;
   height: 100%;
   overflow: hidden;
+  background-color: #f4f4f4;
 }
 
 .sidebar {
