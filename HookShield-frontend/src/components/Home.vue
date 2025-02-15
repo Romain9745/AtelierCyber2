@@ -21,8 +21,8 @@
 </template>
 
 <script>
-import Table from "@/components/Table.vue";
-import SearchBar from "./SearchBar.vue";
+import Table from "@/components/commun/Table.vue";
+import SearchBar from "./commun/SearchBar.vue";
 
 export default {
   components: {
