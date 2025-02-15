@@ -86,7 +86,7 @@
         />
       </div>
       <div class="mt-4 flex justify-end space-x-2">
-        <button @click="isEditing = false" class="bg-gray-400 text-white px-4 py-2 rounded">
+        <button @click="CloseEditing" class="bg-gray-400 text-white px-4 py-2 rounded">
           Annuler
         </button>
         <button @click="saveEmail" class="bg-blue-500 text-white px-4 py-2 rounded">
@@ -143,7 +143,12 @@ export default {
       if (this.emailToEdit) {
         this.$emit("edit", this.emailToEdit); // Émet l'événement avec l'email modifié
         this.isEditing = false; // Ferme le modal d'édition
+        this.emailToEdit = null; // Réinitialise l'email à éditer
       }
+    },
+    CloseEditing() {
+      this.isEditing = false; // Ferme le modal d'édition
+      this.emailToEdit = null; // Réinitialise l'email à éditer
     },
   },
 };
