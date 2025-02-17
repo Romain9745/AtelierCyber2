@@ -6,17 +6,17 @@
       </div>
       <Table :data="tableData" :headers="headers" @row-click="handleRowClick" />
       </div>
-      <ListModal :emails="selectedList" v-if="selectedList" @close="selectedList = null" />
+      <ListModalManager :emails="selectedList" v-if="selectedList" @close="selectedList = null" />
   </template>
   
   <script>
-  import ListModal from "./ListModal.vue";
+  import ListModalManager from "./ListModalManager.vue";
   import Table from "@/components/commun/Table.vue";
   
   export default {
     components: {
       Table,
-      ListModal,
+      ListModalManager,
     },
     data() {
       return {
