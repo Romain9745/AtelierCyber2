@@ -2,66 +2,38 @@
 import Sidebar from "@/components/commun/Sidebar.vue";
 import Navbar from "./components/commun/NavBar.vue";
 import { RouterView, useRoute } from 'vue-router';
+import { ref } from 'vue';
 
 const route = useRoute();
+const isSideBarVisible = ref(true);
 </script>
 
 <template>
-  <div v-bind:class="[route.path === '/login' ? 'login_layout' : 'layout']">
-    <header v-if="route.path !== '/login'">
+  <div :class="route.path === '/login' ? 'flex justify-center items-center h-screen bg-gray-100' : 'grid grid-rows-[auto_1fr] h-screen overflow-hidden'">
+    <!-- Navbar -->
+    <header v-if="route.path !== '/login'" class="shadow-md z-50">
       <Navbar />
     </header>
-    <main v-bind:class="[route.path === '/login' ? 'login_layout' : 'main']">
-      <div class="sidebar" v-if="route.path !== '/login'">
-        <Sidebar />
+
+    <main :class="route.path === '/login' ? 'flex justify-center items-center h-screen bg-gray-100' : 'grid grid-cols-[auto_1fr] h-full overflow-hidden bg-gray-100'">
+      
+       <div v-if="route.path !== '/login' && !isSideBarVisible" class="flex p-4 shadow-md z-50">
+      <button 
+        @click="isSideBarVisible = true" 
+        class="p-2 h-[10vh] bg-white rounded-full shadow-md z-50 transition-all"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7"></path>
+        </svg>
+      </button>
+    </div>
+
+      <div v-if="route.path !== '/login' && isSideBarVisible" class="bg-sidebar h-full overflow-y-auto shadow-md w-[250px] transition-all">
+        <Sidebar @close="isSideBarVisible = false" />
       </div>
-      <div class="content">
+
         <RouterView />
-      </div>
+      
     </main>
   </div>
 </template>
-
-<style scoped>
-.layout {
-  display: grid;
-  grid-template-rows: auto 1fr;
-  grid-template-columns: 1fr;
-  height: 100vh;
-  overflow: hidden;
-}
-
-.login_layout {
-  display: flex;
-  justify-content: center;
-  align-items: center; 
-  height: 100vh; 
-  background-color: #f4f4f4; 
-}
-
-header {
-  height: 80px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  z-index: 50;
-}
-
-.main {
-  display: grid;
-  grid-template-columns: 250px 1fr;
-  height: 100%;
-  overflow: hidden;
-  background-color: #f4f4f4;
-}
-
-.sidebar {
-  background: var(--color-sidebar-bg);
-  height: 100%;
-  overflow-y: auto;
-  box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
-}
-
-.content {
-  overflow-y: auto;
-  padding: 10px;
-}
-</style>

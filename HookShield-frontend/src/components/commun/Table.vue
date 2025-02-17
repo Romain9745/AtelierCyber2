@@ -59,8 +59,8 @@
       <tr
         v-for="(row, rowIndex) in sorted"
         :key="rowIndex"
-        @click="VizualiseRow(row)"
-        class="bg-white border-b dark:bg-gray-800 dark:border-gray-700 border-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600"
+        @click="VizualiseRow(row, rowIndex)"
+        :class="rowIndex != this.selectedRowIndex ? 'bg-white border-b dark:bg-gray-800 dark:border-gray-700 border-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600' : 'bg-blue-100 '"
       >
         <td
           v-for="(value, colIndex) in row"
@@ -93,6 +93,7 @@ export default {
       sortIndex: null,  // Utilise l'index au lieu du header
       sortOrder: 'asc',
       sorted: [...this.data],
+      selectedRowIndex: null,
     };
   },
   methods: {
@@ -129,7 +130,8 @@ export default {
       });
     },
     // Fonction pour visualiser une ligne
-    VizualiseRow(row) {
+    VizualiseRow(row, rowIndex) {
+      this.selectedRowIndex = rowIndex;
       this.$emit('row-click', row);
     },
   },
