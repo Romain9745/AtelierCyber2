@@ -37,7 +37,7 @@ export default {
         { recipient: 'eve@example.com', sender: 'alice@example.com', subject: 'Important Notice', blockReason: 'Spam' },
         { recipient: 'frank@example.com', sender: 'bob@example.com', subject: 'Account Suspended', blockReason: 'Malware' },
       ],
-      headers: ['recipient', 'sender', 'subject', 'blockReason'],
+      headers: ['Destinataire', 'Expéditeur', 'Sujet', 'Raison'],
       selectedEmail: null,
     };
   },

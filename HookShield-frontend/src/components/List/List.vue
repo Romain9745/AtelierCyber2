@@ -7,7 +7,7 @@
       <Table :data="tableData" :headers="headers" @row-click="handleRowClick" />
       </div>
       <ListModal :emails="selectedList" v-if="selectedList" @close="selectedList = null" />
-  </template>
+</template>
   
   <script>
   import ListModal from "./ListModal.vue";

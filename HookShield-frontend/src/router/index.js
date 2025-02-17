@@ -3,7 +3,8 @@ import HomeView from '../views/HomeView.vue'
 import LoginView from '../views/LoginView.vue'
 import StatView from '../views/StatView.vue'
 import ListView from '../views/ListView.vue'
-import MailManagerView from '@/views/MailManagerView.vue'
+import MailManagerView from '../views/MailManagerView.vue'
+import AdminView from '../views/AdminView.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -32,8 +33,12 @@ const router = createRouter({
       path: '/mailmanager',
       name: 'mailmanager',
       component: MailManagerView,
+    },
+    {
+      path: '/admin',
+      name: 'admin',
+      component: AdminView,
     }
-
   ],
 })
 
