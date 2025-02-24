@@ -4,3 +4,9 @@ imaplib2
 google-auth
 google_auth_oauthlib
 msal
+pydantic
+pyjtw
+passlib[bcrypt]
+sqlalchemy
+pymysql
+databases

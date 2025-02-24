@@ -1,12 +1,9 @@
-from fastapi import FastAPI, Request, HTTPException
+from fastapi import APIRouter, Request, HTTPException
 from google_auth_oauthlib.flow import Flow
-import webbrowser, uvicorn, json, imaplib
+import webbrowser, json, imaplib
 
-app = FastAPI()
 
-# Go to http://127.0.0.1:8000/docs if you want a pretty interface or /redoc but it's not as good (imo)
-# Else use curl but it's tedious, here's an example just in case: 
-# curl -X 'POST' 'http://127.0.0.1:8000/connect/imap' -H 'Content-Type: application/json' -d '{"server": "server", "email": "email", "password": "password"}'
+router = APIRouter()
 
 # IMAP Login
 #----------------------------------------------------------------------------------------------------------------------------
@@ -19,7 +16,7 @@ def imap_login(server: str, email: str, password: str):
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-@app.post("/login/imap")
+router.post("/login/imap")
 def login(server: str, email: str, password: str):
     return imap_login(server, email, password)
 #----------------------------------------------------------------------------------------------------------------------------
@@ -48,7 +45,7 @@ gmail_flow = Flow.from_client_config(
 )
 gmail_flow.redirect_uri = REDIRECT_URI
 
-@app.get("/login/gmail")
+router.get("/login/gmail")
 def gmail_login():
     """ Automatically opens the browser for OAuth authentication """
     auth_url, _ = gmail_flow.authorization_url(prompt="consent")
@@ -58,7 +55,7 @@ def gmail_login():
     
     return {"message": "Browser opened. Complete the authentication."}
 
-@app.get("/gmail_callback")
+router.get("/gmail_callback")
 async def gmail_callback(request: Request):
     """ Retrieves the OAuth token after authentication and redirects the user """
     code = request.query_params.get("code")
@@ -89,6 +86,3 @@ async def gmail_callback(request: Request):
 #----------------------------------------------------------------------------------------------------------------------------
 # TODO
 #----------------------------------------------------------------------------------------------------------------------------
-
-if __name__ == "__main__":
-    uvicorn.run(app, host="127.0.0.1", port=8000)
