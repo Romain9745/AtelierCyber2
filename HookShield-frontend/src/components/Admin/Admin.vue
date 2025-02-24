@@ -1,5 +1,5 @@
 <template>
-  <div>
+  <div style="overflow: auto;">
     <!-- Premier tableau : Liste des utilisateurs -->
     <div class="flex flex-col gap-3 h-full p-8 bg-gray-100 dark:bg-gray-900">
       <div class="flex items-center justify-between mb-4">
@@ -44,45 +44,16 @@ export default {
         { author: 'Alice Opéhidémervèye', description: 'Fermeture ticket 6966642', date: '28-10-2024'},
         { author: 'Mr. Indestructible', description: 'Ajout de tiboinshape@fraud.com dans la blacklist', date: '27-10-2024'},
         { author: 'Charlie Chaplin', description: 'A été promu administrateur', date: '27-10-2024'},
-        { author: 'Frank Dubosc', description: 'pasunefrande@gmail.com a été retiré de la blacklist', date: '27-10-2024'},
+        { author: 'Frank Dubosc', description: 'pasunefraude@gmail.com a été retiré de la blacklist', date: '27-10-2024'},
       ],
       headers: ['Utilisateur', 'Niveau de permission', "Date d'ajout"],
       headersLogs: ['Auteur', 'Description', 'Date'],
       selectedUser: null,
-      isHidden: false,
     };
   },
   methods: {
     handleRowClick(rowData) {
       this.selectedUser = rowData;
-    },
-    hideData(className) {
-        console.log("data is hidden")
-        const table = document.querySelector(`.${className}`);
-        if (!table) return;
-
-        const rows = table.querySelectorAll("tbody tr"); // Sélectionne toutes les lignes du tbody
-        rows.forEach((row, index) => {
-        row.style.display = index < 3 ? "" : "none"; // Cache toutes les lignes sauf les 3 premières
-        });
-        this.isHidden=true
-    },
-    showAllData(className) {
-        const table = document.querySelector(`.${className}`);
-        if (!table) return;
-
-        const rows = table.querySelectorAll("tbody tr");
-        rows.forEach((row) => {
-        row.style.display = ""; // Affiche toutes les lignes
-        });
-        this.isHidden=false
-    },
-    hideOrShowData(className) {
-    if (this.isHidden) {
-      this.showAllData(className);
-    } else {
-      this.hideData(className);
-    }
     },
   },
 };

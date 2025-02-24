@@ -6,7 +6,7 @@
       </div>
       <Table :data="tableData" :headers="headers" @row-click="handleRowClick" />
       </div>
-      <ListModalManager :emails="selectedList" v-if="selectedList" @close="selectedList = null" />
+      <ListModalManager :listname="selectedListName" :emails="selectedList" v-if="selectedList" @close="selectedList = null" />
   </template>
   
   <script>
@@ -22,7 +22,7 @@
       return {
         tableData: [
           { name: 'Blacklist', description: 'adresses mails bloquées'},
-          { name: 'Withelist', sender: 'Aucune verification sur ces adresses'},
+          { name: 'Whitelist', sender: 'Aucune verification sur ces adresses'},
           { name: 'Blacklist Perso', sender: 'Liste adresses mails à bloquer'},
         ],
         blacklist: [
@@ -37,14 +37,26 @@
           { address: 'support@untrusted.com', description: 'spam' },
           { address: 'info@fraudsite.com', description: 'fraud' },
         ],
+        whitelist: [
+        { address: 'michel@gmail.com', description: "c'est un collègue" },
+        { address: 'bot@automatedservices.com', description: 'ces mails sont drôles' },
+        { address: 'associationdespecheurspros@outlook.com', description: 'fishing' },
+        ],
 
         headers: ['Nom de la liste', 'description'],
         selectedList: null,
+        selectedListName: null
       };
     },
     methods: {
       handleRowClick(rowData) {
-        this.selectedList = this.blacklist;
+        if (rowData.name=="Blacklist") {
+          this.selectedListName="Blacklist"
+          this.selectedList = this.blacklist;
+        } else if (rowData.name=="Whitelist") {
+          this.selectedListName="Whitelist";
+          this.selectedList = this.whitelist;
+        }
       },
     },
   };

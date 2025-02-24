@@ -1,12 +1,19 @@
 <template>
-    <div class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50" @click.self="deselectRow">
-      <div class="flex flex-col gap-6 bg-white p-6 rounded-lg shadow-lg w-1/3" @click.self="deselectRow">
+    <div class="fixed inset-0 flex items-center justify-center" style="background-color: rgba(0, 0, 0, 0.5);" @click.self="closeModal">
+      <div class="flex flex-col gap-6 bg-white p-6 rounded-lg shadow-lg w-1/3 transform translate-y-8" @click.self="deselectRow">
         <h2 class="text-lg font-bold mb-4 text-center">Email Addresses</h2>
-        <table class="w-full border-collapse border border-gray-300 " >
+        <button 
+            @click="confirmAdd" 
+            class="bg-blue-500 text-white px-4 py-2 rounded disabled:bg-gray-400 disabled:cursor-not-allowed"
+          >
+            Ajouter
+          </button>
+        <div style="overflow: auto; max-height: 300px; border: 1px solid gray;">
+        <table class="w-full border-collapse border border-gray-300 ">
           <thead>
             <tr class="bg-gray-100">
               <th class="border border-gray-300 px-4 py-2 text-left">Email</th>
-              <th class="border border-gray-300 px-4 py-2 text-left">Description</th>
+              <th class="border border-gray-300 px-4 py-2 text-left">Explication</th>
             </tr>
           </thead>
           <tbody>
@@ -22,13 +29,8 @@
             </tr>
           </tbody>
         </table>
+        </div>
         <div class="mt-4 flex gap-2 justify-end">
-          <button 
-            @click="closeModal" 
-            class="bg-red-500 text-white px-4 py-2 rounded"
-          >
-            Fermer
-          </button>
           <button 
             @click="edit" 
             :disabled="!selectedEmail" 
@@ -43,12 +45,18 @@
           >
             Supprimer
           </button>
+          <button 
+            @click="closeModal" 
+            class="bg-red-500 text-white px-4 py-2 rounded"
+          >
+            Fermer
+          </button>
         </div>
       </div>
     </div>
   
     <!-- Modal de confirmation -->
-    <div v-if="isConfirming" class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50">
+    <div v-if="isConfirming" class="fixed inset-0 flex items-center justify-center" style="background-color: rgba(0, 0, 0, 0.5);">
       <ConfirmationModal 
         question="Êtes-vous sûr de vouloir supprimer cet email ?"
         @close="isConfirming = false"
@@ -56,8 +64,8 @@
     </div>
 
      <!-- Modal d'édition -->
-  <div v-if="isEditing" class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50">
-    <div class="bg-white p-6 rounded-lg shadow-lg w-1/3">
+  <div v-if="isEditing" class="fixed inset-0 flex items-center justify-center" style="background-color: rgba(0, 0, 0, 0.5);" @click="CloseEditing">
+    <div class="bg-white p-6 rounded-lg shadow-lg w-1/3" @click="stopPropagation">
       <h3 class="text-lg font-bold mb-4 text-center">Éditer Email</h3>
       <div>
         <label for="email" class="block mb-2">Adresse Email</label>
@@ -77,8 +85,8 @@
           class="w-full px-4 py-2 border border-gray-300 rounded mb-4"
         />
       </div>
-      <div class="mt-4 flex justify-end space-x-2">
-        <button @click="CloseEditing" class="bg-gray-400 text-white px-4 py-2 rounded">
+      <div class="mt-4 flex justify-end gap-2">
+        <button @click="CloseEditing" class="bg-red-500 text-white px-4 py-2 rounded">
           Annuler
         </button>
         <button @click="saveEmail" class="bg-blue-500 text-white px-4 py-2 rounded">
@@ -87,6 +95,40 @@
       </div>
     </div>
   </div>
+
+  <!-- Modal d'ajout de mail -->
+  <div v-if=isAdding class="fixed inset-0 flex items-center justify-center" style="background-color: rgba(0, 0, 0, 0.5);" @click="CloseAdding">
+    <div class="bg-white p-6 rounded-lg shadow-lg w-1/3" @click="stopPropagation">
+      <h3 class="text-lg font-bold mb-4 text-center">Ajouter une adresse email </h3>
+      <div>
+        <label for="emailadress" class="block mb-2">Adresse Email</label>
+        <input 
+          id="email"
+          v-model="EmailAdressToAdd"
+          type="email"
+          class="w-full px-4 py-2 border border-gray-300 rounded mb-4"
+          :placeholder="listname === 'Whitelist' ? 'adresse@mail.com' : 'fraude@maiI.com'"
+        />
+        <label for="explication"  class="block mb-2">Explication</label>
+        <input 
+          id="explication"
+          v-model="ExplicationToAdd"
+          type="text"
+          class="w-full px-4 py-2 border border-gray-300 rounded mb-4"
+          :placeholder="listname === 'Whitelist' ? 'non spam, mal classé...' : 'Fraude, scam, spam...'"
+        />
+      </div>
+      <div class="mt-4 flex justify-end gap-2">
+        <button @click="CloseAdding" class="bg-red-500 text-white px-4 py-2 rounded">
+          Annuler
+        </button>
+        <button @click="saveEmailToAdd" class="bg-blue-500 text-white px-4 py-2 rounded">
+          Sauvegarder
+        </button>
+      </div>
+    </div>
+  </div>
+
   </template>
   
   <script>
@@ -102,6 +144,10 @@ export default {
       type: Array,
       required: true,
     },
+    listname: {
+    type: String,
+    required: true,
+    },
   },
   data() {
     return {
@@ -109,6 +155,7 @@ export default {
       isConfirming: false,
       isEditing: false, // Gère l'affichage du modal d'édition
       emailToEdit: null, // Garde l'email sélectionné pour l'édition
+      isAdding: false, // Gère l'affichage du modal d'ajout
     };
   },
   methods: {
@@ -126,6 +173,9 @@ export default {
         this.emailToEdit = { ...this.selectedEmail }; // Crée une copie de l'email pour l'édition
         this.isEditing = true; // Affiche le modal d'édition
       }
+    },
+    confirmAdd() {
+      this.isAdding = true;
     },
     confirmDelete() {
       this.isConfirming = true; // Affiche le modal de confirmation
@@ -147,6 +197,12 @@ export default {
     CloseEditing() {
       this.isEditing = false; // Ferme le modal d'édition
       this.emailToEdit = null; // Réinitialise l'email à éditer
+    },
+    CloseAdding() {
+      this.isAdding=false;
+    },
+    stopPropagation(event) {
+    event.stopPropagation(); // Empêche la propagation du clic vers les parents
     },
   },
 };

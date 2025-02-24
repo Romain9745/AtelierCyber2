@@ -2,9 +2,9 @@
   
       <!-- Modal -->
       <div
-        class="fixed top-0 right-0 left-0 flex justify-center items-center w-full h-full bg-black "
+        class="fixed top-0 right-0 left-0 flex justify-center items-center w-full h-full" style="background-color: rgba(0, 0, 0, 0.5);" @click="closeModal"
       >
-        <div class="relative p-4 w-full max-w-md max-h-full bg-white rounded-lg shadow-sm dark:bg-gray-700">
+        <div class="relative p-4 w-full max-w-md max-h-full bg-white rounded-lg shadow-sm dark:bg-gray-700" @click="stopPropagation">
           <!-- Modal content -->
           <div class="flex justify-between items-center p-4 border-b rounded-t dark:border-gray-600">
             <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
@@ -139,6 +139,9 @@
       },
       connectWithImap() {
         console.log("Connecting with IMAP...");
+      },
+      stopPropagation(event) {
+      event.stopPropagation(); // Empêche la propagation du clic vers les parents
       },
     },
   };
