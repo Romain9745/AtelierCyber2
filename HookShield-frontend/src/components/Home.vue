@@ -6,28 +6,32 @@
     </div>
     
     <Table :data="tableData" :headers="headers" @row-click="handleRowClick" />
-
+<!-- Modal du détail du mail 
     <div v-if="selectedEmail" class="mt-8 p-4 bg-gray-200 dark:bg-gray-800 rounded-lg">
       <h2 class="text-xl font-semibold text-gray-900 dark:text-white">Aperçu du Mail</h2>
       <div class="mt-4">
         <p><strong>Destinataire:</strong> {{ selectedEmail.recipient }}</p>
         <p><strong>Expéditeur:</strong> {{ selectedEmail.sender }}</p>
         <p><strong>Sujet:</strong> {{ selectedEmail.subject }}</p>
-        <p><strong>Raison du blocage:</strong> {{ selectedEmail.blockReason }}</p>
-      </div>
-      </div>
-
-    </div>
+        <p><strong>Raison du blocage:</strong> {{ selectedEmail.blockReason }}</p> 
+        </div>
+        </div> -->
+        <MailDetail v-if="selectedEmail" :selectedEmail="selectedEmail" @close="selectedEmail = null" class="mt-8 p-4 bg-gray-200 dark:bg-gray-800 rounded-lg" />
+      
+    
+  </div>
 </template>
 
 <script>
 import Table from "@/components/commun/Table.vue";
 import SearchBar from "./commun/SearchBar.vue";
+import MailDetail from "./MailDetail.vue";
 
 export default {
   components: {
     Table,
     SearchBar,
+    MailDetail,
   },
   data() {
     return {
@@ -43,6 +47,7 @@ export default {
   },
   methods: {
     handleRowClick(rowData) {
+      console.log(rowData);
       this.selectedEmail = rowData;
     },
   },
