@@ -1,6 +1,6 @@
 import jwt
 from datetime import datetime, timedelta
-import os
+from fastapi import Depends, HTTPException
 
 def create_access_token(data: dict, secret_key: str, expires_delta: timedelta | None = None) -> str:
     to_encode = data.copy()
@@ -21,3 +21,4 @@ def create_refresh_token(data: dict, secret_key: str, expires_delta: timedelta |
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(to_encode, secret_key, algorithm="HS256")
     return encoded_jwt
+

@@ -1,7 +1,8 @@
 from fastapi import FastAPI, Request, HTTPException
 import uvicorn
-from routers.users import router as auth
+from routers.auth import router as auth
 from routers.mail_manager import router as mail_router
+from routers.admin import router as admin
 
 app = FastAPI()
 
@@ -14,6 +15,7 @@ app = FastAPI()
 
 app.include_router(mail_router)
 app.include_router(auth)
+app.include_router(admin)
 
 if __name__ == "__main__":
     uvicorn.run(app, host="127.0.0.1", port=8000)
