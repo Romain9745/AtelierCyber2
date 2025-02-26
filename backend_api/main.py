@@ -3,10 +3,18 @@ import uvicorn
 from routers.auth import router as auth
 from routers.mail_manager import router as mail_router
 from routers.admin import router as admin
+from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI()
 
-
+# Configurer CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 # Go to http://127.0.0.1:8000/docs if you want a pretty interface or /redoc but it's not as good (imo)

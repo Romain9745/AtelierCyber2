@@ -11,6 +11,10 @@ from passlib.context import CryptContext
 
 router = APIRouter()
 
+class LoginRequest(BaseModel):
+    email: str
+    password: str
+
 class UserInfo(BaseModel):
     username: str
     email: str
@@ -34,8 +38,9 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 settings = Settings()
 
 @router.post('/login')
-def login(email:str,password:str, response: Response, db: Session = Depends(get_db)):
-    user = authenticate_user(db, email, password)
+def login(request: LoginRequest, response: Response, db: Session = Depends(get_db)):
+    print(request)
+    user = authenticate_user(db, request.email, request.password)
     if not user:
         raise HTTPException(status_code=401, detail="Invalid credentials")
     
@@ -65,12 +70,26 @@ def refresh(response: Response, request: Request, db: Session = Depends(get_db))
     response.set_cookie(key="access_token", value=access_token, httponly=True)
     return {"message": "Token refreshed"}
 
+def get_current_user(request: Request,db: Session = Depends(get_db)):
+    access_token = request.cookies.get("access_token")
+    if not access_token:
+        raise HTTPException(status_code=401, detail="Invalid access token")
+    try:
+        payload = jwt.decode(access_token, settings.secret_key, algorithms="HS256")
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Access token expired")
+    
+    return get_user_info(db, email=payload.get("sub"))
+
 @router.post('/logout')
 def logout(response: Response):
     response.delete_cookie("access_token")
     response.delete_cookie("refresh_token")
     return {"message": "Logout successful"}
 
+@router.get('/me')
+def me(user: UserInfo = Depends(get_current_user)):
+    return user
 
 get_hash_password = lambda password: pwd_context.hash(password)
 
@@ -101,17 +120,9 @@ def authenticate_user(db, email: str, password: str):
         return False
     return get_user_info(db, email)
 
-def get_current_user(request: Request,db: Session = Depends(get_db)):
-    access_token = request.cookies.get("access_token")
-    if not access_token:
-        raise HTTPException(status_code=401, detail="Invalid access token")
+
     
-    try:
-        payload = jwt.decode(access_token, settings.secret_key, algorithms="HS256")
-    except jwt.ExpiredSignatureError:
-        raise HTTPException(status_code=401, detail="Access token expired")
     
-    return get_user_info(db, email=payload.get("sub"))
 
 
 class CheckRole:
