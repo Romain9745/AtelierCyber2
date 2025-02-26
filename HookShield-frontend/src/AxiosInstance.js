@@ -1,7 +1,7 @@
 import axios from "axios";
 
 const axiosInstance = axios.create({
-  baseURL: "https://localhost:3000",
+  baseURL: "http://localhost:8000",
   headers: {
     "Content-Type": "application/json",
   },
@@ -12,7 +12,7 @@ const axiosInstance = axios.create({
 
 async function refreshAccessToken() {
 
-  const response = await axios.post('https://localhost:3000/refresh', null, {
+  const response = await axios.post('http://localhost:8000/refresh', null, {
     withCredentials: true,
   });
 

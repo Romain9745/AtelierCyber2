@@ -45,7 +45,6 @@ const router = createRouter({
 
 router.beforeEach(async (to, from, next) => {
   const authStore = useAuthStore();
-  console.log(authStore.isAuthenticated);
   if (!authStore.isAuthenticated && to.path !== '/login' ) {
     next('/login');
   } else {
@@ -54,6 +53,7 @@ router.beforeEach(async (to, from, next) => {
     }
     next();
   }
+
 });
 
 

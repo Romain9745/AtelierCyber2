@@ -44,26 +44,36 @@
 
 <script>
 import { useRouter } from 'vue-router';
-import { ref } from 'vue';
+import { ref, onMounted } from 'vue';
 import { useAuthStore } from "@/store/auth.js";
 
 export default {
     name: 'LoginForm',
     setup() {
+        
+
         const router = useRouter();
         const authStore = useAuthStore();
         const email = ref('');
         const password = ref('');
         const Loginerror = ref('');
 
+
+        onMounted(async () => {
+            if (authStore.isAuthenticated) {
+            router.push('/'); // Redirect to home if already authenticated
+            }
+        });
+
         const handleSignIn = async () => {
             try {
                 Loginerror.value = '';
-                await authStore.login(username.value, password.value).then(() => {
+                await authStore.login(email.value,password.value).then(() => {
                     if (authStore.isAuthenticated) router.push({ name: "home" });
                 });
             } catch (e) {
                 Loginerror.value = "Invalid credentials";
+                console.error(e);
             }
         }
 
