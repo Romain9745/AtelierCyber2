@@ -5,7 +5,7 @@ google-auth
 google_auth_oauthlib
 msal
 pydantic
-pyjtw
+pyjwt
 passlib[bcrypt]
 sqlalchemy
 pymysql

@@ -28,8 +28,16 @@ CREATE TABLE email_accounts (
     id INT AUTO_INCREMENT PRIMARY KEY,
     email VARCHAR(255) UNIQUE NOT NULL,
     added_by INT NOT NULL,
+    credentials TEXT NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (added_by) REFERENCES users(id) ON DELETE CASCADE
+    FOREIGN KEY (account_type) REFERENCES email_account_types(id) ON DELETE CASCADE
+);
+
+--Email account types
+CREATE TABLE email_account_types (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    type_name ENUM('imap', 'Google') NOT NULL
 );
 
 -- Email folders table
@@ -89,6 +97,15 @@ CREATE TABLE notifications (
 
 -- Blacklist table
 CREATE TABLE blacklist (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    email VARCHAR(100) NOT NULL UNIQUE,
+    reason TEXT NOT NULL,
+    added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT chk_email CHECK (email LIKE '%@%.%')
+);
+
+-- Whitelist table
+CREATE TABLE whitelist (
     id INT AUTO_INCREMENT PRIMARY KEY,
     email VARCHAR(100) NOT NULL UNIQUE,
     reason TEXT NOT NULL,
