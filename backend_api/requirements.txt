@@ -10,3 +10,4 @@ passlib[bcrypt]
 sqlalchemy
 pymysql
 databases
+imapclient
