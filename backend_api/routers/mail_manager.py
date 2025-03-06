@@ -1,13 +1,12 @@
 from fastapi import APIRouter, Request, HTTPException
 from google_auth_oauthlib.flow import Flow
-import webbrowser, json, imaplib
+import webbrowser, json, imaplib, requests, base64
 
 
 router = APIRouter()
 
 # IMAP Login
 #----------------------------------------------------------------------------------------------------------------------------
-# Does not seem to be working atm ??????
 def imap_login(server: str, email: str, password: str):
     try:
         mail = imaplib.IMAP4_SSL(server)
@@ -23,6 +22,8 @@ def login(server: str, email: str, password: str):
 
 # Gmail OAuth
 #----------------------------------------------------------------------------------------------------------------------------
+# TODO : Use user token instead of stored token
+
 # TODO : Config file where we store env var 
 # Company account -->   mail: hookshieldinc@gmail.com       password: !f5dA8e4$t64D5 
 CLIENT_ID = "615748183428-4ooi03dcn37hgga691n34j2omsu0taoc.apps.googleusercontent.com"
@@ -80,6 +81,82 @@ async def gmail_callback(request: Request):
         json.dump(data, file, indent=4)
     
     return {"message": "GMAIL connection successful, OAuth token stored in tokens.json"}
+
+# TODO : Test webhooks once we've set up a public address
+# TODO : Modify function to be user-specific and add separation by recipient
+def setup_gmail_webhook():
+    """Configures Gmail push notifications via Cloud Pub/Sub"""
+    try:
+        with open("tokens.json", "r") as file:
+            data = json.load(file)
+            token = data.get("token")
+            if not token:
+                return {"error": "No OAuth token found"}
+    except FileNotFoundError:
+        return {"error": "tokens.json not found"}
+
+    headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+    pubsub_topic = "projects/project-id/topics/topic-name"  # TODO : Change this
+
+    body = {
+        "labelIds": ["INBOX"],
+        "topicName": pubsub_topic
+    }
+
+    response = requests.post(
+        "https://www.googleapis.com/gmail/v1/users/me/watch", headers=headers, json=body
+    )
+
+    return response.json()
+
+router.get("/gmail/webhook")
+async def gmail_webhook(request: Request):
+    """Receives new email notifications from Gmail (via Pub/Sub)"""
+    data = await request.json()
+    message_data = data.get("message", {}).get("data")
+
+    if not message_data:
+        return {"error": "No notification data"}
+
+    decoded_data = base64.urlsafe_b64decode(message_data).decode("utf-8")
+    print("Gmail Notification Received:", decoded_data)
+
+    fetch_new_emails()
+
+    return {"message": "Notification received"}
+
+def fetch_new_emails():
+    """Fetches the latest received emails"""
+    try:
+        with open("tokens.json", "r") as file:
+            data = json.load(file)
+            token = data.get("token")
+            if not token:
+                return {"error": "No OAuth token found"}
+    except FileNotFoundError:
+        return {"error": "tokens.json not found"}
+
+    headers = {"Authorization": f"Bearer {token}"}
+    response = requests.get("https://www.googleapis.com/gmail/v1/users/me/messages?maxResults=1", headers=headers)
+
+    if response.status_code == 200:
+        email_id = response.json().get("messages", [{}])[0].get("id")
+
+        email_response = requests.get(f"https://www.googleapis.com/gmail/v1/users/me/messages/{email_id}?format=full", headers=headers)
+
+        if email_response.status_code == 200:
+            email_data = email_response.json()
+            headers_info = email_data.get("payload", {}).get("headers", [])
+
+            subject = next((h["value"] for h in headers_info if h["name"] == "Subject"), "No Subject")
+            sender = next((h["value"] for h in headers_info if h["name"] == "From"), "Unknown Sender")
+
+            # TODO : Send to AI Backend instead of printing
+            print(f"New Email Received: {subject} from {sender}")
+
+            return {"email_id": email_id, "subject": subject, "from": sender}
+
+    return {"error": "Failed to retrieve emails"}
 #----------------------------------------------------------------------------------------------------------------------------
 
 # Outlook OAuth
