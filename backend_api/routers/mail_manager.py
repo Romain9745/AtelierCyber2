@@ -160,6 +160,55 @@ def fetch_new_emails():
 #----------------------------------------------------------------------------------------------------------------------------
 
 # Outlook OAuth
+# /!\ Need an account with a payment method and a free trial --> only for 1 Month /!\
 #----------------------------------------------------------------------------------------------------------------------------
-# TODO
+from fastapi import APIRouter, Request, HTTPException
+import json, requests
+from msal import ConfidentialClientApplication
+
+router = APIRouter()
+
+# TODO : Change with real values
+# Outlook OAuth Configuration
+CLIENT_ID = "client_id"
+CLIENT_SECRET = "client_secret"
+TENANT_ID = "tenant_id" # Can use common instead of tenant_id if our outlook acc is not a company acc
+REDIRECT_URI = "http://127.0.0.1:8000/outlook_callback"
+AUTHORITY = f"https://login.microsoftonline.com/{TENANT_ID}"
+SCOPES = ["https://graph.microsoft.com/.default"]
+TOKEN_FILE = "outlook_tokens.json" # TODO : Use the DB instead of a json file
+
+router.get("/login/outlook")
+def outlook_login():
+    """Generates the Outlook OAuth login URL"""
+    auth_url = f"{AUTHORITY}/oauth2/v2.0/authorize?client_id={CLIENT_ID}&response_type=code&redirect_uri={REDIRECT_URI}&response_mode=query&scope={' '.join(SCOPES)}"
+    return {"auth_url": auth_url}
+
+router.get("/outlook_callback")
+def outlook_callback(request: Request):
+    """Handles OAuth callback and stores token"""
+    code = request.query_params.get("code")
+    if not code:
+        return {"error": "Missing OAuth code"}
+
+    token_url = f"{AUTHORITY}/oauth2/v2.0/token"
+    data = {
+        "client_id": CLIENT_ID,
+        "client_secret": CLIENT_SECRET,
+        "code": code,
+        "redirect_uri": REDIRECT_URI,
+        "grant_type": "authorization_code",
+        "scope": " ".join(SCOPES),
+    }
+
+    response = requests.post(token_url, data=data)
+    token_data = response.json()
+
+    if "access_token" in token_data:
+        with open(TOKEN_FILE, "w") as token_file:
+            json.dump(token_data, token_file, indent=4)
+        return {"message": "Outlook OAuth token stored successfully"}
+    else:
+        return {"error": token_data}
+
 #----------------------------------------------------------------------------------------------------------------------------
