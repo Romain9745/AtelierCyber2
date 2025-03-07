@@ -12,6 +12,8 @@
   <script>
   import ListModalManager from "./ListModalManager.vue";
   import Table from "@/components/commun/Table.vue";
+  import axiosInstance from '@/AxiosInstance'; // Import d'axiosInstance
+  import axios from 'axios'; // Import d'axios
   
   export default {
     components: {
@@ -49,13 +51,33 @@
       };
     },
     methods: {
-      handleRowClick(rowData) {
-        if (rowData.name=="Blacklist") {
-          this.selectedListName="Blacklist"
-          this.selectedList = this.blacklist;
-        } else if (rowData.name=="Whitelist") {
-          this.selectedListName="Whitelist";
-          this.selectedList = this.whitelist;
+    async handleRowClick(rowData) {
+        try {
+            if (rowData.name === "Blacklist") {
+                this.selectedListName = "Blacklist";
+                const response = await axios.get('http://localhost:8000/main_blacklist');
+                this.selectedList = response.data.map(item => ({
+                    address: item.email,  
+                    description: item.reason 
+                })); 
+            } else if (rowData.name === "Whitelist") {
+                this.selectedListName = "Whitelist";
+                const response = await axios.get('http://localhost:8000/whitelist');
+                this.selectedList = response.data.map(item => ({
+                    address: item.email, 
+                    description: item.reason 
+                })); 
+            } else if (rowData.name === "Blacklist Perso") {
+                this.selectedListName = "Blacklist Perso";
+                const response = await axios.get('http://localhost:8000/user_blacklist');
+                this.selectedList = response.data.map(item => ({
+                    address: item.email, 
+                    description: item.reason 
+                })); 
+            }
+        } catch (error) {
+            console.error("Error fetching list:", error);
+            this.selectedList = [];  // Clear the list in case of error
         }
       },
     },
