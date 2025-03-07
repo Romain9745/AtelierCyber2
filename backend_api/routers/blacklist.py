@@ -82,9 +82,7 @@ def add_to_blacklist(entry: ListInfo, db: Session = Depends(get_db)):
     
 @router.delete('/main_blacklist')
 def delete_from_blacklist(email: str, db: Session = Depends(get_db)):
-    print("début suppression email")
     try:
-        print("email reçu : "+email)
         entry = db.query(BlacklistInDb).filter(BlacklistInDb.email == email).first()
         if not entry:
             raise HTTPException(status_code=404, detail="Email non trouvé dans la blacklist")
