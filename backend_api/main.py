@@ -3,6 +3,7 @@ import uvicorn
 from routers.auth import router as auth
 from routers.mail_manager import router as mail_router
 from routers.admin import router as admin
+from routers.blacklist import router as blacklist
 from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI()
@@ -24,6 +25,7 @@ app.add_middleware(
 app.include_router(mail_router)
 app.include_router(auth)
 app.include_router(admin)
+app.include_router(blacklist)
 
 if __name__ == "__main__":
     uvicorn.run(app, host="127.0.0.1", port=8000)
