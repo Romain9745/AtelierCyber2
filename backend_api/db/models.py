@@ -59,3 +59,4 @@ class UserBlacklistInDb(Base):
     __table_args__ = (
         CheckConstraint("email LIKE '%@%.%'", name='chk_email_format'),
     )
+

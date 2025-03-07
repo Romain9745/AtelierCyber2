@@ -1,13 +1,13 @@
-from fastapi import APIRouter, Request, HTTPException
-from google_auth_oauthlib.flow import Flow
-import webbrowser, json, imaplib
+from fastapi import APIRouter, Request, HTTPException, BackgroundTasks
+import webbrowser, json, imaplib, requests, base64, email
 
 
 router = APIRouter()
 
 # IMAP Login
 #----------------------------------------------------------------------------------------------------------------------------
-# Does not seem to be working atm ??????
+from imapclient import IMAPClient
+
 def imap_login(server: str, email: str, password: str):
     try:
         mail = imaplib.IMAP4_SSL(server)
@@ -16,13 +16,61 @@ def imap_login(server: str, email: str, password: str):
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-router.post("/login/imap")
+@router.post("/login/imap")
 def login(server: str, email: str, password: str):
     return imap_login(server, email, password)
+
+@router.post("/start-imap-listener")
+def start_imap_listener(email: str, password: str, imap_server: str, background_tasks: BackgroundTasks):
+    """Starts IMAP IDLE mode to listen for new emails in real-time"""
+    background_tasks.add_task(imap_idle, email, password, imap_server)
+    return {"message": "IMAP listener started"}
+
+def imap_idle(email: str, password: str, imap_server: str):
+    """IMAP IDLE listener that waits for new emails"""
+    try:
+        with IMAPClient(imap_server) as client:
+            client.login(email, password)
+            client.select_folder("INBOX")
+
+            print("Listening for new emails...")
+
+            while True:
+                # Enter IDLE mode and wait for a new email
+                client.idle()
+                response = client.idle_check(timeout=60)  # Wait up to 60 seconds
+                client.idle_done()
+
+                if response:
+                    print("New email detected!")
+                    fetch_latest_email(client)
+    except Exception as e:
+        print(f"Error in IMAP listener: {e}")
+
+def fetch_latest_email(client):
+    """Fetches the latest unread email"""
+    messages = client.search("UNSEEN")  # Fetch unread emails
+    if not messages:
+        return
+
+    latest_email_id = messages[-1]
+    response = client.fetch(latest_email_id, ["RFC822"])
+    raw_email = response[latest_email_id][b"RFC822"]
+
+    msg = email.message_from_bytes(raw_email)
+    subject = msg["subject"]
+    sender = msg["from"]
+
+    print(f"New Email: {subject} from {sender}")
+
+    return {"from": sender, "subject": subject}
 #----------------------------------------------------------------------------------------------------------------------------
 
 # Gmail OAuth
 #----------------------------------------------------------------------------------------------------------------------------
+from google_auth_oauthlib.flow import Flow
+# TODO : Use user token instead of stored token
+
 # TODO : Config file where we store env var 
 # Company account -->   mail: hookshieldinc@gmail.com       password: !f5dA8e4$t64D5 
 CLIENT_ID = "615748183428-4ooi03dcn37hgga691n34j2omsu0taoc.apps.googleusercontent.com"
@@ -45,7 +93,7 @@ gmail_flow = Flow.from_client_config(
 )
 gmail_flow.redirect_uri = REDIRECT_URI
 
-router.get("/login/gmail")
+@router.get("/login/gmail")
 def gmail_login():
     """ Automatically opens the browser for OAuth authentication """
     auth_url, _ = gmail_flow.authorization_url(prompt="consent")
@@ -55,7 +103,7 @@ def gmail_login():
     
     return {"message": "Browser opened. Complete the authentication."}
 
-router.get("/gmail_callback")
+@router.get("/gmail_callback")
 async def gmail_callback(request: Request):
     """ Retrieves the OAuth token after authentication and redirects the user """
     code = request.query_params.get("code")
@@ -80,9 +128,129 @@ async def gmail_callback(request: Request):
         json.dump(data, file, indent=4)
     
     return {"message": "GMAIL connection successful, OAuth token stored in tokens.json"}
+
+# TODO : Test webhooks once we've set up a public address
+# TODO : Modify function to be user-specific and add separation by recipient
+def setup_gmail_webhook():
+    """Configures Gmail push notifications via Cloud Pub/Sub"""
+    try:
+        with open("tokens.json", "r") as file:
+            data = json.load(file)
+            token = data.get("token")
+            if not token:
+                return {"error": "No OAuth token found"}
+    except FileNotFoundError:
+        return {"error": "tokens.json not found"}
+
+    headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+    pubsub_topic = "projects/project-id/topics/topic-name"  # TODO : Change this
+
+    body = {
+        "labelIds": ["INBOX"],
+        "topicName": pubsub_topic
+    }
+
+    response = requests.post(
+        "https://www.googleapis.com/gmail/v1/users/me/watch", headers=headers, json=body
+    )
+
+    return response.json()
+
+@router.get("/gmail/webhook")
+async def gmail_webhook(request: Request):
+    """Receives new email notifications from Gmail (via Pub/Sub)"""
+    data = await request.json()
+    message_data = data.get("message", {}).get("data")
+
+    if not message_data:
+        return {"error": "No notification data"}
+
+    decoded_data = base64.urlsafe_b64decode(message_data).decode("utf-8")
+    print("Gmail Notification Received:", decoded_data)
+
+    fetch_new_emails()
+
+    return {"message": "Notification received"}
+
+def fetch_new_emails():
+    """Fetches the latest received emails"""
+    try:
+        with open("tokens.json", "r") as file:
+            data = json.load(file)
+            token = data.get("token")
+            if not token:
+                return {"error": "No OAuth token found"}
+    except FileNotFoundError:
+        return {"error": "tokens.json not found"}
+
+    headers = {"Authorization": f"Bearer {token}"}
+    response = requests.get("https://www.googleapis.com/gmail/v1/users/me/messages?maxResults=1", headers=headers)
+
+    if response.status_code == 200:
+        email_id = response.json().get("messages", [{}])[0].get("id")
+
+        email_response = requests.get(f"https://www.googleapis.com/gmail/v1/users/me/messages/{email_id}?format=full", headers=headers)
+
+        if email_response.status_code == 200:
+            email_data = email_response.json()
+            headers_info = email_data.get("payload", {}).get("headers", [])
+
+            subject = next((h["value"] for h in headers_info if h["name"] == "Subject"), "No Subject")
+            sender = next((h["value"] for h in headers_info if h["name"] == "From"), "Unknown Sender")
+
+            # TODO : Send to AI Backend instead of printing
+            print(f"New Email Received: {subject} from {sender}")
+
+            return {"email_id": email_id, "subject": subject, "from": sender}
+
+    return {"error": "Failed to retrieve emails"}
 #----------------------------------------------------------------------------------------------------------------------------
 
 # Outlook OAuth
+# /!\ Need an account with a payment method and a free trial --> only for 1 Month /!\
 #----------------------------------------------------------------------------------------------------------------------------
-# TODO
+from msal import ConfidentialClientApplication
+
+# TODO : Change with real values + Config/env file with all of the ID/Secret/URI/etc. stuff
+# Outlook OAuth Configuration
+CLIENT_ID = "client_id"
+CLIENT_SECRET = "client_secret"
+TENANT_ID = "tenant_id" # Can use common instead of tenant_id if our outlook acc is not a company acc
+REDIRECT_URI = "http://127.0.0.1:8000/outlook_callback"
+AUTHORITY = f"https://login.microsoftonline.com/{TENANT_ID}"
+SCOPES = ["https://graph.microsoft.com/.default"]
+TOKEN_FILE = "outlook_tokens.json" # TODO : Use the DB instead of a json file
+
+@router.get("/login/outlook")
+def outlook_login():
+    """Generates the Outlook OAuth login URL"""
+    auth_url = f"{AUTHORITY}/oauth2/v2.0/authorize?client_id={CLIENT_ID}&response_type=code&redirect_uri={REDIRECT_URI}&response_mode=query&scope={' '.join(SCOPES)}"
+    return {"auth_url": auth_url}
+
+@router.get("/outlook_callback")
+def outlook_callback(request: Request):
+    """Handles OAuth callback and stores token"""
+    code = request.query_params.get("code")
+    if not code:
+        return {"error": "Missing OAuth code"}
+
+    token_url = f"{AUTHORITY}/oauth2/v2.0/token"
+    data = {
+        "client_id": CLIENT_ID,
+        "client_secret": CLIENT_SECRET,
+        "code": code,
+        "redirect_uri": REDIRECT_URI,
+        "grant_type": "authorization_code",
+        "scope": " ".join(SCOPES),
+    }
+
+    response = requests.post(token_url, data=data)
+    token_data = response.json()
+
+    if "access_token" in token_data:
+        with open(TOKEN_FILE, "w") as token_file:
+            json.dump(token_data, token_file, indent=4)
+        return {"message": "Outlook OAuth token stored successfully"}
+    else:
+        return {"error": token_data}
 #----------------------------------------------------------------------------------------------------------------------------

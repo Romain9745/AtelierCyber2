@@ -3,22 +3,19 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from sqlalchemy.orm import Session
 from db.db import SessionLocal
 import jwt
-from db.models import UserInDB
 from utils.jwt_auth import create_access_token, create_refresh_token
+from utils.users import get_user_hashed_password, get_user_info, pwd_context, UserInfo, get_db, register, User, Role
 
-from passlib.context import CryptContext
+
 
 
 router = APIRouter()
 
+fake_User = User(first_name="John", last_name="Doe", username="johndoe", email="johndoe@gmail.com", password="password", role=Role.admin)
+
 class LoginRequest(BaseModel):
     email: str
     password: str
-
-class UserInfo(BaseModel):
-    username: str
-    email: str
-    role: str
 
 class Settings(BaseModel):
     secret_key: str = "secret"
@@ -26,25 +23,20 @@ class Settings(BaseModel):
     access_token_expires: int = 30
     refresh_token_expires: int = 600
 
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+
 
 settings = Settings()
 
 @router.post('/login')
 def login(request: LoginRequest, response: Response, db: Session = Depends(get_db)):
-    print(request)
     user = authenticate_user(db, request.email, request.password)
+    print(user.role.value,user.role.name)
     if not user:
         raise HTTPException(status_code=401, detail="Invalid credentials")
     
-    access_token = create_access_token(data={"sub": user.email, "role": user.role},secret_key=settings.secret_key)
+    access_token = create_access_token(data={"sub": user.email, "role": user.role.name},secret_key=settings.secret_key)
     refresh_token = create_refresh_token( data={"sub": user.email},secret_key=settings.secret_key)
 
     response.set_cookie(key="access_token", value=access_token, httponly=True)
@@ -63,7 +55,7 @@ def refresh(response: Response, request: Request, db: Session = Depends(get_db))
     except jwt.ExpiredSignatureError:
         raise HTTPException(status_code=401, detail="Refresh token expired")
     
-    role = get_user_info(db, email=payload.get("sub")).role
+    role = get_user_info(db, email=payload.get("sub")).role.name
     if not role:
         raise HTTPException(status_code=401, detail="Invalid refresh token")
     access_token = create_access_token(data={"sub": payload.get("sub"), "role": role },secret_key=settings.secret_key)
@@ -91,31 +83,14 @@ def logout(response: Response):
 def me(user: UserInfo = Depends(get_current_user)):
     return user
 
-get_hash_password = lambda password: pwd_context.hash(password)
 
-def get_user_hashed_password(db, email):
-    try:
-        user = db.query(UserInDB).filter(UserInDB.email == email).first()
-        if not user:
-            return None 
-        return user.password
-    except Exception as e:
-        return None
-
-
-def get_user_info(db, email):
-    try:
-        user = db.query(UserInDB).filter(UserInDB.email == email).first()
-        if user:
-            return UserInfo(username=user.username, email=user.email, role=user.role.role_name)
-    except:
-        return None
-    return user
 
 def authenticate_user(db, email: str, password: str):
     user_hashed_password = get_user_hashed_password(db, email)
+    print(user_hashed_password)
     if not user_hashed_password:
         return False
+    print (pwd_context.verify(password, user_hashed_password))
     if not pwd_context.verify(password, user_hashed_password):
         return False
     return get_user_info(db, email)
@@ -126,10 +101,11 @@ def authenticate_user(db, email: str, password: str):
 
 
 class CheckRole:
-    def __init__(self, role: str):
+    def __init__(self, role: Role):
         self.role = role
 
     def __call__(self, user: UserInfo = Depends(get_current_user)):
-        if user.role != self.role:
+        print(user.role)
+        if user.role.name != self.role.name:
             raise HTTPException(status_code=403, detail="Forbidden")
         return True
