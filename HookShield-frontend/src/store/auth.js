@@ -1,21 +1,22 @@
 import { defineStore } from 'pinia'; // Import de defineStore depuis Pinia
 import axiosInstance from '@/AxiosInstance'; // Import d'axiosInstance
 import axios from 'axios'; // Import d'axios
+import router from '@/router';
 
 export const useAuthStore = defineStore('auth', {
   state: () => ({
     isAuthenticated: false,
-    username: "",
+    email: "",
     role: "",
   }),
 
   actions: {
 
-    async login(username, password) {
+    async login(email, password) {
       try {
-        const data = { username, password };
+        const data = { email, password };
 
-        const response = await axios.post('https://localhost:3000/login', data, {
+        const response = await axios.post('http://localhost:8000/login', data, {
           withCredentials: true, 
         });
 
@@ -34,11 +35,19 @@ export const useAuthStore = defineStore('auth', {
 
     async loadUser() {
       try {
-        const userResponse = await axiosInstance.get('https://localhost:3000/me', {
-          withCredentials: true,
-        });
-        this.username = userResponse.data.username;
-        this.role = userResponse.data.role;
+        await axiosInstance.get('http://localhost:8000/me', {
+          withCredentials: true, timeout: 1000,
+        }).then((response) => {
+          if (response.status === 200) {
+            this.email = response.data.email;
+            this.role = response.data.role;
+            this.isAuthenticated = true;
+          }
+          else {
+            this.isAuthenticated = false;
+        }});
+        
+        
       } catch (error) {
         this.isAuthenticated = false;
       }
@@ -48,15 +57,15 @@ export const useAuthStore = defineStore('auth', {
       this.isAuthenticated = false;
       this.username = "";
       this.role = "";
-      axiosInstance.post('https://localhost:3000/logout', {}, {
+      axiosInstance.post('http://localhost:8000/logout', {}, {
         withCredentials: true,
       });
+      router.push('/login');
     },
 
     async checkAuth() {
       try {
         await this.loadUser();
-        this.isAuthenticated = true;
       } catch (error) {
         this.isAuthenticated = false;
       }
