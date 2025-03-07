@@ -3,6 +3,7 @@
       <div class="flex flex-col gap-6 bg-white p-6 rounded-lg shadow-lg w-1/3 transform translate-y-8" @click.self="deselectRow">
         <h2 class="text-lg font-bold mb-4 text-center">Adresses email</h2>
         <button 
+            v-if="canEdit"
             @click="confirmAdd" 
             class="bg-blue-500 text-white px-4 py-2 rounded disabled:bg-gray-400 disabled:cursor-not-allowed"
           >
@@ -32,6 +33,7 @@
         </div>
         <div class="mt-4 flex gap-2 justify-end">
           <button 
+            v-if="canEdit"
             @click="edit" 
             :disabled="!selectedEmail" 
             class="bg-blue-500 text-white px-4 py-2 rounded disabled:bg-gray-400 disabled:cursor-not-allowed"
@@ -39,6 +41,7 @@
             Éditer
           </button>
           <button 
+            v-if="canEdit"
             @click="confirmDelete" 
             :disabled="!selectedEmail" 
             class="bg-red-600 text-white px-4 py-2 rounded disabled:bg-gray-400 disabled:cursor-not-allowed"
@@ -134,7 +137,7 @@
   
   <script>
 import ConfirmationModal from "@/components/commun/ConfirmationModal.vue";
-
+import { useAuthStore } from "@/store/auth.js";
 
 export default {
   components: {
@@ -159,12 +162,22 @@ export default {
       isAdding: false, // Gère l'affichage du modal d'ajout
     };
   },
+  computed: {
+    authStore() {
+      return useAuthStore();
+    },
+    canEdit() {
+      // Autoriser l'édition si le rôle est 2 ou si listname est "Blacklist Perso"
+      return this.authStore.role === 1 || this.listname === "Blacklist Perso";
+    }
+  },
   methods: {
     closeModal() {
       this.$emit("close");
     },
     selectRow(email) {
       this.selectedEmail = email;
+      console.log(this.authStore.role)
     },
     deselectRow() {
       this.selectedEmail = null;
