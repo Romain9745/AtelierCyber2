@@ -1,6 +1,8 @@
 from sqlalchemy import CheckConstraint, Column, DateTime, Integer, String, TIMESTAMP, ForeignKey, func
 from sqlalchemy.orm import relationship
 from db.db import Base
+from sqlalchemy import Column, Integer, String, DateTime, Text, Boolean, ForeignKey, func, CheckConstraint
+from sqlalchemy.ext.declarative import declarative_base
 
 class UserInDB(Base):
     __tablename__ = 'users'
@@ -60,3 +62,23 @@ class UserBlacklistInDb(Base):
         CheckConstraint("email LIKE '%@%.%'", name='chk_email_format'),
     )
 
+class MailsInDb(Base):
+    __tablename__ = 'email_analyses'
+    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    subject = Column(String(255), nullable=False)
+    recipient = Column(String(100), nullable=False)
+    source = Column(String(100), nullable=False)
+    receive_date = Column(DateTime, default=func.now())
+    analyzed_date = Column(DateTime, default=func.now())
+    email_body = Column(Text, nullable=False)
+    is_phishing = Column(Boolean, nullable=False)
+    blocked_date = Column(DateTime, nullable=True)
+    explanation = Column(Text, nullable=False)
+    folder_id = Column(Integer, ForeignKey('email_folders.id', ondelete='CASCADE'), nullable=False)
+
+    source_email = Column(String, ForeignKey('email_accounts.email', ondelete='CASCADE'))
+    __table_args__ = (
+        CheckConstraint("recipient LIKE '%@%.%'", name='chk_recipient_email_format'),
+        CheckConstraint("source LIKE '%@%.%'", name='chk_source_email_format'),
+    )
