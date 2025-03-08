@@ -12,7 +12,6 @@
   <script>
   import ListModalManager from "./ListModalManager.vue";
   import Table from "@/components/commun/Table.vue";
-  import axiosInstance from '@/AxiosInstance'; // Import d'axiosInstance
   import axios from 'axios'; // Import d'axios
   
   export default {

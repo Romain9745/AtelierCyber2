@@ -5,7 +5,8 @@
       <SearchBar :data="tableData" @update:data="tableData = $event" />
     </div>
     
-    <Table :data="tableData" :headers="headers" @row-click="handleRowClick" />
+    <Table v-if="tableData.length > 0" :data="tableData" :headers="headers" @row-click="handleRowClick" />
+
 <!-- Modal du détail du mail 
     <div v-if="selectedEmail" class="mt-8 p-4 bg-gray-200 dark:bg-gray-800 rounded-lg">
       <h2 class="text-xl font-semibold text-gray-900 dark:text-white">Aperçu du Mail</h2>
@@ -16,7 +17,7 @@
         <p><strong>Raison du blocage:</strong> {{ selectedEmail.blockReason }}</p> 
         </div>
         </div> -->
-        <MailDetail v-if="selectedEmail" :selectedEmail="selectedEmail" @close="selectedEmail = null" class="mt-8 p-4 bg-gray-200 dark:bg-gray-800 rounded-lg" />
+        <MailDetail v-if="selectedEmail" :selectedEmail="selectedEmail" :email_body="email_body" @close="closeMailDetail" class="mt-8 p-4 bg-gray-200 dark:bg-gray-800 rounded-lg" />
       
     
   </div>
@@ -26,6 +27,7 @@
 import Table from "@/components/commun/Table.vue";
 import SearchBar from "./commun/SearchBar.vue";
 import MailDetail from "./MailDetail.vue";
+import axios from 'axios'; // Import d'axios
 
 export default {
   components: {
@@ -35,21 +37,63 @@ export default {
   },
   data() {
     return {
-      tableData: [
-        { recipient: 'alice@example.com', sender: 'bob@example.com', subject: 'Suspicious Activity', blockReason: 'Spam' },
-        { recipient: 'charlie@example.com', sender: 'diana@example.com', subject: 'Marketing Update', blockReason: 'Phishing' },
-        { recipient: 'eve@example.com', sender: 'alice@example.com', subject: 'Important Notice', blockReason: 'Spam' },
-        { recipient: 'frank@example.com', sender: 'bob@example.com', subject: 'Account Suspended', blockReason: 'Malware' },
-      ],
+      tableData: [],
       headers: ['Destinataire', 'Expéditeur', 'Sujet', 'Raison'],
       selectedEmail: null,
+      email_body: "",
     };
   },
-  methods: {
-    handleRowClick(rowData) {
-      console.log(rowData);
-      this.selectedEmail = rowData;
-    },
+  mounted() {
+    this.fetchBlockedEmails();
   },
+  methods: {
+    async fetchBlockedEmails() {
+      try {
+        const response = await axios.get('http://localhost:8000/blocked_emails');
+        console.log("The answer is "+response.data.subject);
+        this.tableData = response.data.map(email => ({
+          recipient: email.recipient,
+          sender: email.source,
+          subject: email.subject,
+          blockReason: email.explanation,
+        }));
+        console.log("the table is ", this.tableData)
+      } catch (error) {
+        console.error("Erreur lors de la récupération des emails bloqués :", error);
+      }
+    },
+    async handleRowClick(rowData) {
+      console.log("Données de la ligne sélectionnée :", rowData);
+      this.selectedEmail = rowData;
+      this.email_body = ""; // Réinitialise le corps de l'email
+
+      try {
+        const response = await axios.get('http://localhost:8000/email_body', {
+          params: {
+            source: rowData.sender,
+            recipient: rowData.recipient,
+            subject: rowData.subject,
+            explanation: rowData.blockReason,
+          }
+        });
+        
+        console.log("Corps de l'email récupéré :", response.data.email_body);
+        this.email_body = response.data.email_body; // Stocke le corps de l'email
+        
+      } catch (error) {
+        console.error("Erreur lors de la récupération du corps de l'email :", error);
+        if (error.response && error.response.status === 404) {
+            alert("Aucun corps d'email trouvé pour cette entrée.");
+        } else {
+            alert("Une erreur s'est produite lors de la récupération du corps de l'email.");
+        }
+      }
+    },
+    closeMailDetail() {
+      this.selectedEmail = null;
+      this.email_body = "";
+    }
+  },
+  
 };
 </script>
