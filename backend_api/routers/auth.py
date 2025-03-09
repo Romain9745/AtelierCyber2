@@ -4,7 +4,8 @@ from sqlalchemy.orm import Session
 from db.db import SessionLocal
 import jwt
 from utils.jwt_auth import create_access_token, create_refresh_token
-from utils.users import get_user_hashed_password, get_user_info, pwd_context, UserInfo, get_db, register, User, Role
+from utils.users import get_user_hashed_password, get_user_info, pwd_context, UserInfo, get_db, register, User, Role, modif_last_login
+from db.models import UserInDB
 
 
 
@@ -32,15 +33,14 @@ settings = Settings()
 @router.post('/login')
 def login(request: LoginRequest, response: Response, db: Session = Depends(get_db)):
     user = authenticate_user(db, request.email, request.password)
-    print(user.role.value,user.role.name)
     if not user:
         raise HTTPException(status_code=401, detail="Invalid credentials")
-    
     access_token = create_access_token(data={"sub": user.email, "role": user.role.name},secret_key=settings.secret_key)
     refresh_token = create_refresh_token( data={"sub": user.email},secret_key=settings.secret_key)
 
     response.set_cookie(key="access_token", value=access_token, httponly=True)
     response.set_cookie(key="refresh_token", value=refresh_token, httponly=True)
+    modif_last_login(db, user.email)
 
     return {"message": "Login successful"}
 
@@ -87,7 +87,6 @@ def me(user: UserInfo = Depends(get_current_user)):
 
 def authenticate_user(db, email: str, password: str):
     user_hashed_password = get_user_hashed_password(db, email)
-    print(user_hashed_password)
     if not user_hashed_password:
         return False
     print (pwd_context.verify(password, user_hashed_password))
@@ -95,10 +94,15 @@ def authenticate_user(db, email: str, password: str):
         return False
     return get_user_info(db, email)
 
-
-    
-    
-
+@router.post('/first_admin_account')
+def first_admin_account(user: User,db: Session = Depends(get_db)):
+    is_User_Table_Empty = db.query(UserInDB).count() == 0
+    if is_User_Table_Empty:
+        user.role = Role.admin
+        new_user = register(user, db)
+        return {"message": "First admin account created", "user_id": new_user.id}
+    else:
+        raise HTTPException(status_code=403, detail="Forbidden")
 
 class CheckRole:
     def __init__(self, role: Role):

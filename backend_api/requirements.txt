@@ -1,6 +1,7 @@
 fastapi
 uvicorn
 imaplib2
+imapclient
 google-auth
 google_auth_oauthlib
 msal
