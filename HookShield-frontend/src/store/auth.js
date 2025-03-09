@@ -40,7 +40,15 @@ export const useAuthStore = defineStore('auth', {
         }).then((response) => {
           if (response.status === 200) {
             this.email = response.data.email;
-            this.role = response.data.role;
+            if (response.data.role === 1) {
+              this.role = "Admin";
+            }
+            else if (response.data.role === 2) {
+              this.role = "User";
+            }
+            else {
+              this.role = "Unknown";
+            }
             this.isAuthenticated = true;
           }
           else {

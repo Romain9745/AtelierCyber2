@@ -121,6 +121,7 @@
   </template>
   
   <script>
+  import axiosInstance from '@/AxiosInstance';
   export default {
     data() {
       return {
@@ -131,8 +132,12 @@
       closeModal() {
         this.$emit("close");
       },
-      connectWithGoogle() {
+      async connectWithGoogle() {
         console.log("Connecting with Google...");
+        await axiosInstance.get('/login/gmail').then(response => {
+          console.log(response.data);
+        });
+
       },
       connectWithOutlook() {
         console.log("Connecting with Outlook...");
