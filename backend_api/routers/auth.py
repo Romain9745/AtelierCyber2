@@ -10,9 +10,11 @@ from db.models import UserInDB
 
 
 
-router = APIRouter()
+router = APIRouter(tags=["Auth"])
 
 fake_User = User(first_name="John", last_name="Doe", username="johndoe", email="johndoe@gmail.com", password="password", role=Role.admin)
+fake2 = User(first_name="John", last_name="Doe", username="johndoe", email="johndoe@gmail.com", password="password", role=Role.admin)
+fake3 = User(first_name="Jane", last_name="Smith", username="janesmith",email="janesmith@example.com", password="password", role=Role.admin)
 
 class LoginRequest(BaseModel):
     email: str
@@ -29,7 +31,6 @@ class Settings(BaseModel):
 
 
 settings = Settings()
-
 @router.post('/login')
 def login(request: LoginRequest, response: Response, db: Session = Depends(get_db)):
     user = authenticate_user(db, request.email, request.password)

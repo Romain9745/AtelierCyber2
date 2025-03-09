@@ -23,22 +23,25 @@ CREATE TABLE users (
     FOREIGN KEY (role_id) REFERENCES user_roles(id) ON DELETE CASCADE
 );
 
--- Email accounts table
-CREATE TABLE email_accounts (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    email VARCHAR(255) UNIQUE NOT NULL,
-    added_by INT NOT NULL,
-    credentials TEXT NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (added_by) REFERENCES users(id) ON DELETE CASCADE
-    FOREIGN KEY (account_type) REFERENCES email_account_types(id) ON DELETE CASCADE
-);
-
 --Email account types
 CREATE TABLE email_account_types (
     id INT AUTO_INCREMENT PRIMARY KEY,
     type_name ENUM('imap', 'Google') NOT NULL
 );
+
+-- Email accounts table
+CREATE TABLE email_accounts (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    email VARCHAR(255) UNIQUE NOT NULL,
+    added_by INT NOT NULL,
+    account_type INT NOT NULL,
+    credentials TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (added_by) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (account_type) REFERENCES email_account_types(id) ON DELETE CASCADE
+);
+
+
 
 -- Email folders table
 CREATE TABLE email_folders (
@@ -119,8 +122,10 @@ CREATE TABLE file_signatures (
     filename VARCHAR(255) NOT NULL,
     file_hash VARCHAR(64) NOT NULL UNIQUE,
     file_type VARCHAR(50) NOT NULL,
+    email_id INT NOT NULL,
     detected_malware BOOLEAN DEFAULT FALSE,
-    detected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    detected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (email_id) REFERENCES email_analyses(id) ON DELETE CASCADE
 );
 
 -- Global statistics table
@@ -141,6 +146,9 @@ CREATE TABLE user_stats (
     id INT AUTO_INCREMENT PRIMARY KEY,
     user_id INT NOT NULL,
     total_reports INT DEFAULT 0,
+    mail_analyzed INT DEFAULT 0,
+    mail_authentic INT DEFAULT 0,
+    mails_blocked INT DEFAULT 0,
     last_action TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );

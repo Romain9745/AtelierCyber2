@@ -1,13 +1,13 @@
 from sqlalchemy.orm import Session
 from fastapi import APIRouter, Depends, HTTPException
-from db.models import UserInDB
+from db.models import UserInDB, UserStatsinDB
 from routers.auth import CheckRole
 from utils.users import UserInfo, get_db, register, delete, update, User, Role, ModifyUser
 from typing import List, Optional
 from pydantic import BaseModel
 from datetime import datetime
 
-router = APIRouter(prefix="/admin",dependencies=[Depends(CheckRole(Role.admin))])
+router = APIRouter(prefix="/admin",dependencies=[Depends(CheckRole(Role.admin))],tags=["Admin"])
 
 class UserOut(BaseModel):
     first_name: Optional[str] = None
@@ -21,6 +21,13 @@ class UserOut(BaseModel):
 @router.post('/create_user', status_code=201)
 def create_user(user: User, db: Session = Depends(get_db)):
     new_user = register(user, db)
+    new_stats = UserStatsinDB(user_id=new_user.id)
+    try:
+        db.add(new_stats)
+        db.commit()
+        db.refresh(new_user)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
     return {"message": "User created", "user_id": new_user.id}
 
 @router.get('/users', response_model=List[UserOut])

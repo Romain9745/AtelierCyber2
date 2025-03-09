@@ -1,8 +1,10 @@
 from fastapi import APIRouter, Request, HTTPException, BackgroundTasks
 import webbrowser, json, imaplib, requests, base64, email
+from starlette.responses import RedirectResponse
 
 
-router = APIRouter()
+
+router = APIRouter(tags=["MailManager"])
 
 # IMAP Login
 #----------------------------------------------------------------------------------------------------------------------------
@@ -127,7 +129,7 @@ async def gmail_callback(request: Request):
     with open("tokens.json", "w") as file:
         json.dump(data, file, indent=4)
     
-    return {"message": "GMAIL connection successful, OAuth token stored in tokens.json"}
+    return RedirectResponse(url=f'http://localhost:8000/mailmanager')
 
 # TODO : Test webhooks once we've set up a public address
 # TODO : Modify function to be user-specific and add separation by recipient

@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from db.db import SessionLocal
 from db.models import BlacklistInDb, WhitelistInDb, UserBlacklistInDb
 
-router = APIRouter()
+router = APIRouter(tags=["Blacklist"])
 
 class ListInfo(BaseModel):
     email: str

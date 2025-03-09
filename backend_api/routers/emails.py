@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from db.db import SessionLocal
 from db.models import MailsInDb
 
-router = APIRouter()
+router = APIRouter(tags=["mails"])
 
 class MailInfo(BaseModel):
     source: str
