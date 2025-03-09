@@ -135,6 +135,15 @@ export default {
       this.$emit('row-click', row);
     },
   },
+  watch: {
+  data: {
+    handler(newData) {
+      this.sorted = [...newData]; // Mise à jour de sorted lorsque data change
+    },
+    deep: true, // Pour détecter les changements profonds dans un tableau d'objets
+    immediate: true, // Pour initialiser `sorted` dès le montage du composant
+  }
+}
 };
 </script>
   

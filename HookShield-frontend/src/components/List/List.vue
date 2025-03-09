@@ -12,7 +12,7 @@
   <script>
   import ListModalManager from "./ListModalManager.vue";
   import Table from "@/components/commun/Table.vue";
-  import axios from 'axios'; // Import d'axios
+ import axiosInstance from "@/AxiosInstance";
   
   export default {
     components: {
@@ -54,21 +54,21 @@
         try {
             if (rowData.name === "Blacklist") {
                 this.selectedListName = "Blacklist";
-                const response = await axios.get('http://localhost:8000/main_blacklist');
+                const response = await axiosInstance.get('http://localhost:8000/main_blacklist');
                 this.selectedList = response.data.map(item => ({
                     address: item.email,  
                     description: item.reason 
                 })); 
             } else if (rowData.name === "Whitelist") {
                 this.selectedListName = "Whitelist";
-                const response = await axios.get('http://localhost:8000/whitelist');
+                const response = await axiosInstance.get('http://localhost:8000/whitelist');
                 this.selectedList = response.data.map(item => ({
                     address: item.email, 
                     description: item.reason 
                 })); 
             } else if (rowData.name === "Blacklist Perso") {
                 this.selectedListName = "Blacklist Perso";
-                const response = await axios.get('http://localhost:8000/user_blacklist');
+                const response = await axiosInstance.get('http://localhost:8000/user_blacklist');
                 this.selectedList = response.data.map(item => ({
                     address: item.email, 
                     description: item.reason 
