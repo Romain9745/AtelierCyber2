@@ -5,15 +5,7 @@ from db.models import WhitelistInDb, BlacklistInDb,EmailAccountinDB
 from typing import Optional
 from fastapi import Depends, HTTPException
 from sqlalchemy.orm import Session
-from db.db import SessionLocal
 
-
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
 
 
 class Email(BaseModel):
@@ -28,11 +20,13 @@ class EmailAnalysis(BaseModel):
     explanation: Optional[str] = None
     user_account_id: int
 
-async def analyse_email(email: Email,account: str,db: Session = Depends(get_db)) -> EmailAnalysis:
+async def analyse_email(email: Email,account: str,db: Session) -> EmailAnalysis:
     try:
-        user_account_id = db.query(EmailAccountinDB).filter(EmailAccountinDB.email == account).first().id
+        print("Analyzing email")
+        user_account= db.query(EmailAccountinDB).filter(EmailAccountinDB.email == account).first()
         if not user_account_id:
             raise ValueError("User account not found")
+        user_account_id = user_account.id
         # Analyse the email for malware
         phishing_detected = False
         explanation = "No phishing detected"

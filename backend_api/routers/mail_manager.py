@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Request, HTTPException, BackgroundTasks
+from fastapi import APIRouter, Request, HTTPException, BackgroundTasks, Depends
 import webbrowser, json, imaplib, requests, base64, email, time
 from starlette.responses import RedirectResponse
 import time
@@ -6,9 +6,15 @@ from email import policy
 from email.utils import parsedate_tz, mktime_tz
 from bs4 import BeautifulSoup
 from utils.analyse import Email, analyse_email, EmailAnalysis
-from db.models import MailsInDb
+from db.models import MailsInDb,EmailAccountinDB,UserInDB
 from datetime import datetime
-
+import asyncio
+from sqlalchemy.orm import Session
+from db.db import SessionLocal
+from routers.auth import get_current_user
+from utils.users import UserInfo,pwd_context
+from typing import Annotated
+from datetime import datetime
 
 global running
 running = False
@@ -16,37 +22,44 @@ running = False
 
 router = APIRouter(tags=["MailManager"])
 
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
 
 
 # IMAP Login
 #----------------------------------------------------------------------------------------------------------------------------
 from imapclient import IMAPClient
 
-def imap_login(server: str, email: str, password: str):
+def imap_login(server: str, email: str, password: str, db: Session):
     try:
         mail = imaplib.IMAP4_SSL(server)
         mail.login(email, password)
-        return {"message": "IMAP connection successful"}
+        return True
     except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=401, detail=str(e))
 
 @router.post("/login/imap")
-def login(server: str, email: str, password: str):
-    return imap_login(server, email, password)
+def login(server: str, email: str, password: str,background_tasks: BackgroundTasks,user: Annotated[UserInfo, Depends(get_current_user)], db: Session = Depends(get_db),):
+    if imap_login(server, email, password, db):
+        userinDB = db.query(UserInDB).filter(UserInDB.email == user.email).first()
+        if userinDB:
+            encrypted_password = pwd_context.hash(password)
+            db.add(EmailAccountinDB(email=email, added_by=userinDB.id, account_type=1, imap_password=encrypted_password, imap_host=server,created_at=datetime.now()))
+            db.commit()
+            background_tasks.add_task(start_imap_listener, email, password, server,db)
+            return {"message": "IMAP account added successfully"}
 
-@router.post("/start-imap-listener")
-def start_imap_listener(email: str, password: str, imap_server: str, background_tasks: BackgroundTasks):
-    """Starts IMAP IDLE mode to listen for new emails in real-time"""
-    background_tasks.add_task(persistent_imap, email, password, imap_server)
-    return {"message": "IMAP listener started"}
-
-async def check_mail(email: Email, mail: str, client: IMAPClient,db):
+async def check_mail(email: Email, mail: str, client: IMAPClient,db: Session):
     try:
-        email_analys = await analyse_email(email,mail)
+        email_analys = await analyse_email(email,mail,db)
         if email_analys.phishing_detected:
             client.move(mail, "Spam")
             print(f"Email moved to Junk: {email_analys.explanation}")
-            db.add(MailsInDb(
+        db.add(MailsInDb(
                 source=email.from_email,
                 recipient=email.to_email,
                 subject=email.subject,
@@ -59,15 +72,15 @@ async def check_mail(email: Email, mail: str, client: IMAPClient,db):
                 folder_id=1,
                 source_email=mail
             ))
-            db.commit()
-            db.refresh()
+        db.commit()
+        db.refresh()    
     except Exception as e:
         print(f"Error analysing email: {e}")
 
     
 
 
-def persistent_imap(email: str, password: str, imap_server: str):
+async def start_imap_listener(email: str, password: str, imap_server: str,db: Session):
     """Garde la connexion ouverte et vérifie les nouveaux emails"""
     global running
     running = True
@@ -82,15 +95,16 @@ def persistent_imap(email: str, password: str, imap_server: str):
                     if messages:
                         print(f"📩 {len(messages)} new email(s)!")
                         mail = fetch_latest_email(client)
+                        print(mail)
                         if mail:
-                            BackgroundTasks.add_task(check_mail, mail, email, client)
+                            asyncio.create_task(check_mail(mail, email, client,db))
                         
                     
-                    time.sleep(5)  # Vérifie toutes les 5 secondes
+                    await asyncio.sleep(5)  # Vérifie toutes les 5 secondes
 
         except Exception as e:
             print(f"Connection lost: {e}. Reconnecting in 10 seconds...")
-            time.sleep(10)  # Attente avant reconnexion
+            await asyncio.sleep(10)  # Attente avant reconnexion
 
 def fetch_latest_email(client):
     """Fetches the latest unread email"""

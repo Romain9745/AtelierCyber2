@@ -35,7 +35,9 @@ CREATE TABLE email_accounts (
     email VARCHAR(255) UNIQUE NOT NULL,
     added_by INT NOT NULL,
     account_type INT NOT NULL,
-    credentials TEXT NOT NULL,
+    imap_host VARCHAR(255),
+    imap_password VARCHAR(255),
+    token VARCHAR(255),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (added_by) REFERENCES users(id) ON DELETE CASCADE,
     FOREIGN KEY (account_type) REFERENCES email_account_types(id) ON DELETE CASCADE

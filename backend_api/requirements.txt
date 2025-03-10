@@ -13,3 +13,4 @@ pymysql
 databases
 imapclient
 bs4
+httpx
