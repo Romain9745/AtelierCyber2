@@ -1,10 +1,22 @@
 from fastapi import APIRouter, Request, HTTPException, BackgroundTasks
-import webbrowser, json, imaplib, requests, base64, email
+import webbrowser, json, imaplib, requests, base64, email, time
 from starlette.responses import RedirectResponse
+import time
+from email import policy
+from email.utils import parsedate_tz, mktime_tz
+from bs4 import BeautifulSoup
+from utils.analyse import Email, analyse_email, EmailAnalysis
+from db.models import MailsInDb
+from datetime import datetime
 
+
+global running
+running = False
 
 
 router = APIRouter(tags=["MailManager"])
+
+
 
 # IMAP Login
 #----------------------------------------------------------------------------------------------------------------------------
@@ -25,47 +37,113 @@ def login(server: str, email: str, password: str):
 @router.post("/start-imap-listener")
 def start_imap_listener(email: str, password: str, imap_server: str, background_tasks: BackgroundTasks):
     """Starts IMAP IDLE mode to listen for new emails in real-time"""
-    background_tasks.add_task(imap_idle, email, password, imap_server)
+    background_tasks.add_task(persistent_imap, email, password, imap_server)
     return {"message": "IMAP listener started"}
 
-def imap_idle(email: str, password: str, imap_server: str):
-    """IMAP IDLE listener that waits for new emails"""
+async def check_mail(email: Email, mail: str, client: IMAPClient,db):
     try:
-        with IMAPClient(imap_server) as client:
-            client.login(email, password)
-            client.select_folder("INBOX")
-
-            print("Listening for new emails...")
-
-            while True:
-                # Enter IDLE mode and wait for a new email
-                client.idle()
-                response = client.idle_check(timeout=60)  # Wait up to 60 seconds
-                client.idle_done()
-
-                if response:
-                    print("New email detected!")
-                    fetch_latest_email(client)
+        email_analys = await analyse_email(email,mail)
+        if email_analys.phishing_detected:
+            client.move(mail, "Spam")
+            print(f"Email moved to Junk: {email_analys.explanation}")
+            db.add(MailsInDb(
+                source=email.from_email,
+                recipient=email.to_email,
+                subject=email.subject,
+                explanation=email_analys.explanation,
+                email_body=email.body,
+                receive_date=email.timestamp,
+                analyzed_date=datetime.now(),
+                is_phishing=email_analys.phishing_detected,
+                blocked_date=datetime.now(),
+                folder_id=1,
+                source_email=mail
+            ))
+            db.commit()
+            db.refresh()
     except Exception as e:
-        print(f"Error in IMAP listener: {e}")
+        print(f"Error analysing email: {e}")
+
+    
+
+
+def persistent_imap(email: str, password: str, imap_server: str):
+    """Garde la connexion ouverte et vérifie les nouveaux emails"""
+    global running
+    running = True
+    while running:
+        try:
+            with IMAPClient(imap_server) as client:
+                client.login(email, password)
+                client.select_folder("INBOX")
+                
+                while running:
+                    messages = client.search("UNSEEN")
+                    if messages:
+                        print(f"📩 {len(messages)} new email(s)!")
+                        mail = fetch_latest_email(client)
+                        if mail:
+                            BackgroundTasks.add_task(check_mail, mail, email, client)
+                        
+                    
+                    time.sleep(5)  # Vérifie toutes les 5 secondes
+
+        except Exception as e:
+            print(f"Connection lost: {e}. Reconnecting in 10 seconds...")
+            time.sleep(10)  # Attente avant reconnexion
 
 def fetch_latest_email(client):
     """Fetches the latest unread email"""
-    messages = client.search("UNSEEN")  # Fetch unread emails
-    if not messages:
-        return
+    try:
+        messages = client.search("UNSEEN")  # Fetch unread emails
+        if not messages:
+            return
 
-    latest_email_id = messages[-1]
-    response = client.fetch(latest_email_id, ["RFC822"])
-    raw_email = response[latest_email_id][b"RFC822"]
+        latest_email_id = messages[-1]
+        response = client.fetch(latest_email_id, ["RFC822"])
+        raw_email = response[latest_email_id][b"RFC822"]
 
-    msg = email.message_from_bytes(raw_email)
-    subject = msg["subject"]
-    sender = msg["from"]
+        msg = email.message_from_bytes(raw_email, policy=policy.default)
 
-    print(f"New Email: {subject} from {sender}")
+        sender = msg["from"]
+        recipient = msg["to"]
+        subject = msg["subject"]
+        date_str = msg["date"]
 
-    return {"from": sender, "subject": subject}
+        # Convert email date to timestamp
+        timestamp = None
+        if date_str:
+            parsed_date = parsedate_tz(date_str)  # Parse the date
+            if parsed_date:
+                timestamp = mktime_tz(parsed_date)  # Convert to timestamp (seconds)
+
+        body = ""
+
+        # Extract email content
+        if msg.is_multipart():
+            for part in msg.walk():
+                content_type = part.get_content_type()
+                if content_type == "text/plain":
+                    body = part.get_payload(decode=True).decode(part.get_content_charset(), errors="ignore")
+                    break
+                elif content_type == "text/html" and not body:
+                    body = part.get_payload(decode=True).decode(part.get_content_charset(), errors="ignore")
+        else:
+            body = msg.get_payload(decode=True).decode(msg.get_content_charset(), errors="ignore")
+
+        # Convert HTML to text if necessary
+        text_body = BeautifulSoup(body, "html.parser").get_text()
+
+        return Email(from_email=sender, to_email=recipient, subject=subject, body=text_body, timestamp=datetime.fromtimestamp(timestamp))
+    except Exception as e: 
+        print(f"Error fetching email: {e}")
+
+@router.post("/stop_imap_listener")
+def stop_imap_listener():
+    global running
+    running = False
+    return {"message": "IMAP listener stopped"}
+
 #----------------------------------------------------------------------------------------------------------------------------
 
 # Gmail OAuth

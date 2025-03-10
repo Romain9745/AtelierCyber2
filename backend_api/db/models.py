@@ -20,11 +20,31 @@ class UserInDB(Base):
 
     role = relationship('UserRole', backref='users')
 
+class EmailAccountinDB(Base):
+    __tablename__ = 'email_accounts'
+    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    email = Column(String(255), unique=True, nullable=False)
+    added_by = Column(Integer, ForeignKey('users.id'), nullable=False)
+    account_type = Column(Integer, ForeignKey('email_account_types.id'), nullable=False)
+    credentials = Column(Text, nullable=False)
+    created_at = Column(TIMESTAMP, default='CURRENT_TIMESTAMP')
+
+    # Relationships (if you want to access user and account type from EmailAccount)
+    added_by_user = relationship('UserInDB', backref='email_accounts', passive_deletes=True)
+    account_type_obj = relationship('EmailAccountType', backref='email_accounts', passive_deletes=True)
+
 class UserRole(Base):
     __tablename__ = 'user_roles'
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     role_name = Column(String(50), nullable=False)
+
+class EmailAccountTypeinDB(Base):
+    __tablename__ = 'email_account_types'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    type_name = Column(Enum('imap', 'Google', name='email_account_type_enum'), nullable=False)
     
 class BlacklistInDb(Base):
     __tablename__ = 'blacklist'
