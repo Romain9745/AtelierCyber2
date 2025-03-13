@@ -257,8 +257,16 @@ async def fetch_gmail(user: Annotated[UserInfo, Depends(get_current_user)], db: 
         if email_response.status_code == 200:
             email_data = email_response.json()
 
-            # TODO : Create a function to serialize every data structure of mails (imap vs gmail vs outlook) to match the analysis function
-            email_analysis = await analyse_email(email_data, email_account.email, db)
+            sender = email_data['payload']['headers'][1]['value']
+            recipient = email_account.email
+            subject = email_data['payload']['headers'][3]['value']
+            text_body = email_data['snippet']
+            timestamp = datetime.fromtimestamp(int(email_data['internalDate']) / 1000)
+
+
+            email_serialized = Email(from_email=sender, to_email=recipient, subject=subject, body=text_body, timestamp=timestamp)
+            
+            email_analysis = await analyse_email(email_serialized, email_account.email, db)
 
             if email_analysis.phishing_detected:
                 # Move the email to Spam (You would need to interact with the Gmail API to move it)
@@ -285,14 +293,11 @@ async def fetch_gmail(user: Annotated[UserInfo, Depends(get_current_user)], db: 
                 db.commit()
                 db.refresh()
 
-            else:
-                raise HTTPException(status_code=500, detail="Failed to retrieve emails")
-
 
             headers_info = email_data.get("payload", {}).get("headers", [])
             subject = next((h["value"] for h in headers_info if h["name"] == "Subject"), "No Subject")
             sender = next((h["value"] for h in headers_info if h["name"] == "From"), "Unknown Sender")
-            return {"email_id": email_id, "subject": subject, "from": sender}
+            return {"email_id": email_id, "subject": subject, "from": sender, "is_phishing": email_analysis.phishing_detected}
 
     # If there was an error retrieving emails, raise an exception
     raise HTTPException(status_code=500, detail="Failed to retrieve emails")

@@ -47,7 +47,7 @@ async def analyse_email(email: Email,account: str,db: Session) -> EmailAnalysis:
         # Analyse the email for phishing
         async with httpx.AsyncClient() as client:
             response = await client.post("https://localhost:8080/IA", json={
-                "email": email.dict()
+                "email": {**email.dict(), "timestamp": email.timestamp.isoformat()}
             })
             phishing_detected = response.json().get("phishing_detected")
             explanation = response.json().get("explanation")
