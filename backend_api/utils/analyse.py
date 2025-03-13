@@ -24,9 +24,11 @@ async def analyse_email(email: Email,account: str,db: Session) -> EmailAnalysis:
     try:
         print("Analyzing email")
         user_account= db.query(EmailAccountinDB).filter(EmailAccountinDB.email == account).first()
+
+        user_account_id = user_account.id
+
         if not user_account_id:
             raise ValueError("User account not found")
-        user_account_id = user_account.id
         # Analyse the email for malware
         phishing_detected = False
         explanation = "No phishing detected"

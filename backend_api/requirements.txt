@@ -14,3 +14,4 @@ databases
 imapclient
 bs4
 httpx
+google-api-python-client
