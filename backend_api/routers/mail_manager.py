@@ -1,76 +1,168 @@
-from fastapi import APIRouter, Request, HTTPException, BackgroundTasks
-import webbrowser, json, imaplib, requests, base64, email
+from fastapi import APIRouter, Request, HTTPException, BackgroundTasks, Depends
+import webbrowser, json, imaplib, requests, base64, email, time
 from starlette.responses import RedirectResponse
+import time
+from email import policy
+from email.utils import parsedate_tz, mktime_tz
+from bs4 import BeautifulSoup
+from utils.analyse import Email, analyse_email, EmailAnalysis
+from db.models import MailsInDb,EmailAccountinDB,UserInDB,EmailAccountTypeinDB
+from datetime import datetime
+import asyncio
+from sqlalchemy.orm import Session
+from db.db import SessionLocal
+from routers.auth import get_current_user
+from utils.users import UserInfo,pwd_context
+from typing import Annotated
+from datetime import datetime
 
+global running
+running = False
 
 
 router = APIRouter(tags=["MailManager"])
+
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
 
 # IMAP Login
 #----------------------------------------------------------------------------------------------------------------------------
 from imapclient import IMAPClient
 
-def imap_login(server: str, email: str, password: str):
+def imap_login(server: str, email: str, password: str, db: Session):
     try:
         mail = imaplib.IMAP4_SSL(server)
         mail.login(email, password)
-        return {"message": "IMAP connection successful"}
+        return True
     except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=401, detail=str(e))
 
 @router.post("/login/imap")
-def login(server: str, email: str, password: str):
-    return imap_login(server, email, password)
+def login(server: str, email: str, password: str,background_tasks: BackgroundTasks,user: Annotated[UserInfo, Depends(get_current_user)], db: Session = Depends(get_db),):
+    if imap_login(server, email, password, db):
+        userinDB = db.query(UserInDB).filter(UserInDB.email == user.email).first()
+        if userinDB:
+            encrypted_password = pwd_context.hash(password)
+            db.add(EmailAccountinDB(email=email, added_by=userinDB.id, account_type=1, imap_password=encrypted_password, imap_host=server,created_at=datetime.now()))
+            db.commit()
+            background_tasks.add_task(start_imap_listener, email, password, server,db)
+            return {"message": "IMAP account added successfully"}
 
-@router.post("/start-imap-listener")
-def start_imap_listener(email: str, password: str, imap_server: str, background_tasks: BackgroundTasks):
-    """Starts IMAP IDLE mode to listen for new emails in real-time"""
-    background_tasks.add_task(imap_idle, email, password, imap_server)
-    return {"message": "IMAP listener started"}
-
-def imap_idle(email: str, password: str, imap_server: str):
-    """IMAP IDLE listener that waits for new emails"""
+async def check_mail(email: Email, mail: str, client: IMAPClient,db: Session):
     try:
-        with IMAPClient(imap_server) as client:
-            client.login(email, password)
-            client.select_folder("INBOX")
-
-            print("Listening for new emails...")
-
-            while True:
-                # Enter IDLE mode and wait for a new email
-                client.idle()
-                response = client.idle_check(timeout=60)  # Wait up to 60 seconds
-                client.idle_done()
-
-                if response:
-                    print("New email detected!")
-                    fetch_latest_email(client)
+        email_analys = await analyse_email(email,mail,db)
+        if email_analys.phishing_detected:
+            client.move(mail, "Spam")
+            print(f"Email moved to Junk: {email_analys.explanation}")
+        db.add(MailsInDb(
+                source=email.from_email,
+                recipient=email.to_email,
+                subject=email.subject,
+                explanation=email_analys.explanation,
+                email_body=email.body,
+                receive_date=email.timestamp,
+                analyzed_date=datetime.now(),
+                is_phishing=email_analys.phishing_detected,
+                blocked_date=datetime.now(),
+                folder_id=1,
+                source_email=mail
+            ))
+        db.commit()
+        db.refresh()    
     except Exception as e:
-        print(f"Error in IMAP listener: {e}")
+        print(f"Error analysing email: {e}")
+
+async def start_imap_listener(email: str, password: str, imap_server: str,db: Session):
+    """Garde la connexion ouverte et vérifie les nouveaux emails"""
+    global running
+    running = True
+    while running:
+        try:
+            with IMAPClient(imap_server) as client:
+                client.login(email, password)
+                client.select_folder("INBOX")
+                
+                while running:
+                    messages = client.search("UNSEEN")
+                    if messages:
+                        print(f"📩 {len(messages)} new email(s)!")
+                        mail = fetch_latest_email(client)
+                        print(mail)
+                        if mail:
+                            asyncio.create_task(check_mail(mail, email, client,db))
+                        
+                    
+                    await asyncio.sleep(5)  # Vérifie toutes les 5 secondes
+
+        except Exception as e:
+            print(f"Connection lost: {e}. Reconnecting in 10 seconds...")
+            await asyncio.sleep(10)  # Attente avant reconnexion
 
 def fetch_latest_email(client):
     """Fetches the latest unread email"""
-    messages = client.search("UNSEEN")  # Fetch unread emails
-    if not messages:
-        return
+    try:
+        messages = client.search("UNSEEN")  # Fetch unread emails
+        if not messages:
+            return
 
-    latest_email_id = messages[-1]
-    response = client.fetch(latest_email_id, ["RFC822"])
-    raw_email = response[latest_email_id][b"RFC822"]
+        latest_email_id = messages[-1]
+        response = client.fetch(latest_email_id, ["RFC822"])
+        raw_email = response[latest_email_id][b"RFC822"]
 
-    msg = email.message_from_bytes(raw_email)
-    subject = msg["subject"]
-    sender = msg["from"]
+        msg = email.message_from_bytes(raw_email, policy=policy.default)
 
-    print(f"New Email: {subject} from {sender}")
+        sender = msg["from"]
+        recipient = msg["to"]
+        subject = msg["subject"]
+        date_str = msg["date"]
 
-    return {"from": sender, "subject": subject}
+        # Convert email date to timestamp
+        timestamp = None
+        if date_str:
+            parsed_date = parsedate_tz(date_str)  # Parse the date
+            if parsed_date:
+                timestamp = mktime_tz(parsed_date)  # Convert to timestamp (seconds)
+
+        body = ""
+
+        # Extract email content
+        if msg.is_multipart():
+            for part in msg.walk():
+                content_type = part.get_content_type()
+                if content_type == "text/plain":
+                    body = part.get_payload(decode=True).decode(part.get_content_charset(), errors="ignore")
+                    break
+                elif content_type == "text/html" and not body:
+                    body = part.get_payload(decode=True).decode(part.get_content_charset(), errors="ignore")
+        else:
+            body = msg.get_payload(decode=True).decode(msg.get_content_charset(), errors="ignore")
+
+        # Convert HTML to text if necessary
+        text_body = BeautifulSoup(body, "html.parser").get_text()
+
+        return Email(from_email=sender, to_email=recipient, subject=subject, body=text_body, timestamp=datetime.fromtimestamp(timestamp))
+    except Exception as e: 
+        print(f"Error fetching email: {e}")
+
+@router.post("/stop_imap_listener")
+def stop_imap_listener():
+    global running
+    running = False
+    return {"message": "IMAP listener stopped"}
+
 #----------------------------------------------------------------------------------------------------------------------------
 
 # Gmail OAuth
 #----------------------------------------------------------------------------------------------------------------------------
 from google_auth_oauthlib.flow import Flow
+from google.auth.transport.requests import Request as GoogleRequest
+from google.oauth2.credentials import Credentials
+
 # TODO : Use user token instead of stored token
 
 # TODO : Config file where we store env var 
@@ -81,7 +173,7 @@ REDIRECT_URI = "http://127.0.0.1:8000/gmail_callback"
 SCOPES = ["https://www.googleapis.com/auth/gmail.readonly"]
 
 # Temporarily store the OAuth Flow instance
-gmail_flow = Flow.from_client_config(
+flow = Flow.from_client_config(
     {
         "web": {
             "client_id": CLIENT_ID,
@@ -93,12 +185,12 @@ gmail_flow = Flow.from_client_config(
     },
     scopes=SCOPES
 )
-gmail_flow.redirect_uri = REDIRECT_URI
+flow.redirect_uri = REDIRECT_URI
 
 @router.get("/login/gmail")
 def gmail_login():
     """ Automatically opens the browser for OAuth authentication """
-    auth_url, _ = gmail_flow.authorization_url(prompt="consent")
+    auth_url, _ = flow.authorization_url(prompt="consent")
     
     # Open the browser automatically
     webbrowser.open(auth_url)
@@ -106,30 +198,112 @@ def gmail_login():
     return {"message": "Browser opened. Complete the authentication."}
 
 @router.get("/gmail_callback")
-async def gmail_callback(request: Request):
-    """ Retrieves the OAuth token after authentication and redirects the user """
+async def gmail_callback(request: Request, user: Annotated[UserInfo, Depends(get_current_user)], db: Session = Depends(get_db)):
     code = request.query_params.get("code")
-
     if not code:
-        return {"error": "Missing OAuth code"}
+        raise HTTPException(status_code=400, detail="Missing OAuth code")
 
-    gmail_flow.fetch_token(code=code)
-    credentials = gmail_flow.credentials
+    flow.fetch_token(code=code)
+    credentials = flow.credentials
 
-    try:
-        with open("tokens.json", "r") as file:
-            data = json.load(file)
-    except FileNotFoundError:
-        data = {}
+    user_in_db = db.query(UserInDB).filter(UserInDB.email == user.email).first()
+    if not user_in_db:
+        raise HTTPException(status_code=404, detail="User not found")
 
-    # Add new tokens
-    data.update({"token": credentials.token})
+    gmail_type = db.query(EmailAccountTypeinDB).filter(EmailAccountTypeinDB.type_name == "Gmail").first()
+    if not gmail_type:
+        gmail_type = EmailAccountTypeinDB(type_name="Google")
+        db.add(gmail_type)
+        db.commit()
+    db.add(EmailAccountinDB(
+        email=user.email,
+        added_by=user_in_db.id,
+        account_type=gmail_type.id,
+        imap_password=None,
+        imap_host=None,
+        token=credentials.token,
+        created_at=datetime.now()
+    ))
+    db.commit()
 
-    # Save the updated data in the JSON file
-    with open("tokens.json", "w") as file:
-        json.dump(data, file, indent=4)
+    return RedirectResponse(url=f'http://localhost:8000/MailManager')
+
+@router.get("/fetch_gmail")
+async def fetch_gmail(user: Annotated[UserInfo, Depends(get_current_user)], db: Session = Depends(get_db)):
+    # Fetch the email account from the database
+    email_account = db.query(EmailAccountinDB).filter(EmailAccountinDB.email == user.email).first()
+    if not email_account or not email_account.token:
+        raise HTTPException(status_code=400, detail="OAuth token not found")
+
+    credentials = Credentials(token=email_account.token)
+
+    # Check if the token is expired and refresh it if necessary
+    if credentials.expired and credentials.refresh_token:
+        credentials.refresh(GoogleRequest())
+        # Update the token in the database
+        email_account.token = credentials.token  # Store the new token string
+        db.commit()
+
+    # Set up the authorization header with the token
+    headers = {"Authorization": f"Bearer {credentials.token}"}
     
-    return RedirectResponse(url=f'http://localhost:8000/mailmanager')
+    # Retrieve emails from Gmail API
+    response = requests.get("https://www.googleapis.com/gmail/v1/users/me/messages?maxResults=1", headers=headers)
+
+    if response.status_code == 200:
+        email_id = response.json().get("messages", [{}])[0].get("id")
+        email_response = requests.get(f"https://www.googleapis.com/gmail/v1/users/me/messages/{email_id}?format=full", headers=headers)
+
+        if email_response.status_code == 200:
+            email_data = email_response.json()
+
+            sender = email_data['payload']['headers'][1]['value']
+            recipient = email_account.email
+            subject = email_data['payload']['headers'][3]['value']
+            text_body = email_data['snippet']
+            timestamp = datetime.fromtimestamp(int(email_data['internalDate']) / 1000)
+
+
+            email_serialized = Email(from_email=sender, to_email=recipient, subject=subject, body=text_body, timestamp=timestamp)
+            
+            email_analysis = await analyse_email(email_serialized, email_account.email, db)
+
+            if email_analysis.phishing_detected:
+                # Move the email to Spam (You would need to interact with the Gmail API to move it)
+                requests.post(f"https://www.googleapis.com/gmail/v1/users/me/messages/{email_data['id']}/modify",
+                            headers=headers,
+                            json={"addLabelIds": ["SPAM"]})
+                print(f"Email moved to Junk: {email_analysis.explanation}")
+
+                # Save email analysis results into the database
+                db.add(MailsInDb(
+                    source=email_data['payload']['headers'][1]['value'],  # Sender's email address
+                    recipient=email_account.email,  # Assuming the recipient is the logged-in user
+                    subject=email_data['payload']['headers'][3]['value'],  # Subject
+                    explanation=email_analysis.explanation,
+                    email_body=email_data['snippet'],  # Body of the email
+                    receive_date=datetime.fromtimestamp(email_data['internalDate'] / 1000),  # Convert from milliseconds
+                    analyzed_date=datetime.now(),
+                    is_phishing=email_analysis.phishing_detected,
+                    blocked_date=datetime.now() if email_analysis.phishing_detected else None,
+                    folder_id=1,  # Assuming "1" corresponds to a folder for phishing/spam
+                    source_email=email_data['id']
+                ))
+
+                db.commit()
+                db.refresh()
+
+
+            headers_info = email_data.get("payload", {}).get("headers", [])
+            subject = next((h["value"] for h in headers_info if h["name"] == "Subject"), "No Subject")
+            sender = next((h["value"] for h in headers_info if h["name"] == "From"), "Unknown Sender")
+            return {"email_id": email_id, "subject": subject, "from": sender, "is_phishing": email_analysis.phishing_detected}
+
+    # If there was an error retrieving emails, raise an exception
+    raise HTTPException(status_code=500, detail="Failed to retrieve emails")
+
+def gmail_serialization():
+    print("a")
 
 # TODO : Test webhooks once we've set up a public address
 # TODO : Modify function to be user-specific and add separation by recipient
@@ -170,42 +344,9 @@ async def gmail_webhook(request: Request):
     decoded_data = base64.urlsafe_b64decode(message_data).decode("utf-8")
     print("Gmail Notification Received:", decoded_data)
 
-    fetch_new_emails()
+    fetch_gmail()
 
     return {"message": "Notification received"}
-
-def fetch_new_emails():
-    """Fetches the latest received emails"""
-    try:
-        with open("tokens.json", "r") as file:
-            data = json.load(file)
-            token = data.get("token")
-            if not token:
-                return {"error": "No OAuth token found"}
-    except FileNotFoundError:
-        return {"error": "tokens.json not found"}
-
-    headers = {"Authorization": f"Bearer {token}"}
-    response = requests.get("https://www.googleapis.com/gmail/v1/users/me/messages?maxResults=1", headers=headers)
-
-    if response.status_code == 200:
-        email_id = response.json().get("messages", [{}])[0].get("id")
-
-        email_response = requests.get(f"https://www.googleapis.com/gmail/v1/users/me/messages/{email_id}?format=full", headers=headers)
-
-        if email_response.status_code == 200:
-            email_data = email_response.json()
-            headers_info = email_data.get("payload", {}).get("headers", [])
-
-            subject = next((h["value"] for h in headers_info if h["name"] == "Subject"), "No Subject")
-            sender = next((h["value"] for h in headers_info if h["name"] == "From"), "Unknown Sender")
-
-            # TODO : Send to AI Backend instead of printing
-            print(f"New Email Received: {subject} from {sender}")
-
-            return {"email_id": email_id, "subject": subject, "from": sender}
-
-    return {"error": "Failed to retrieve emails"}
 #----------------------------------------------------------------------------------------------------------------------------
 
 # Outlook OAuth
