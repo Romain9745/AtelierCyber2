@@ -7,11 +7,9 @@
       </div>
       <Table :data="tableData" :headers="headers" @row-click="handleRowClick" />
       <div class="flex gap-2">
-        <button type="button" @click="isEditing = true" :disabled="!selectedEmail" class="disabled:bg-gray-400 disabled:cursor-not-allowed text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 me-2 mb-2 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none dark:focus:ring-blue-800">Modifier</button>
         <button type="button" @click="ConfirmSupress" :disabled="!selectedEmail" class="disabled:bg-gray-400 disabled:cursor-not-allowed focus:outline-none text-white bg-red-700 hover:bg-red-800 focus:ring-4 focus:ring-red-300 font-medium rounded-lg text-sm px-5 py-2.5 me-2 mb-2 dark:bg-red-600 dark:hover:bg-red-700 dark:focus:ring-red-900">Supprimer</button>
       </div>
       </div>
-      <MailModifierModal v-if="isEditing" :email-to-edit="selectedEmail.mail" @close="isEditing = false" @save="Edit"/>
       <ConfirmationModal v-if="isConfirming" question="Êtes-vous sûr de vouloir supprimer cette adresse email ?" @close="isConfirming = false" @delete="SupressEmailAdress" />
       <MailConnexionModal v-if="isAdding" @close="isAdding = false" />
   </template>
@@ -21,6 +19,7 @@
     import MailConnexionModal from "./MailConnexionModal.vue";
     import ConfirmationModal from "../commun/ConfirmationModal.vue";
     import MailModifierModal from "./MailModifierModal.vue";
+    import axiosInstance from "@/AxiosInstance";
 
     export default {
       components: {
@@ -32,34 +31,49 @@
       data() {
         return {
           tableData: [
-            {mail: 'r.arg@gmail.com'},
-            {mail: 'r@outlook.com'}
           ],
             headers: ['Adresse mail'],
             selectedEmail: null,
             isAdding : false,
             isConfirming: false,
-            isEditing: false,
         };
         },
-        methods: {
-          handleRowClick(rowData) {
+      mounted() {
+        this.fetchEmailAccounts();
+      },
+      methods: {
+        async fetchEmailAccounts() {
+          try {
+            const response = await axiosInstance.get('/email_accounts');
+            this.tableData = response.data.map(email => ({
+              mail: email.email,
+            }));
+
+            
+          } catch (error) {
+            console.error("Erreur lors de la récupération des emails bloqués :", error);
+          }
+        },
+        handleRowClick(rowData) {
             this.selectedEmail = rowData;
           },
-          Add(){
+        Add(){
             this.isAdding = true;
           },
-          Edit(NewMailAdress){
-            console.log('Modifier email:', NewMailAdress);
-            this.isEditing = false;
-          },
-          ConfirmSupress(){
+        ConfirmSupress(){
             this.isConfirming = true;
           },
-          SupressEmailAdress(){
-            console.log('Supprimer email:', this.selectedEmail);
+        SupressEmailAdress(){
+          const data = { email: this.selectedEmail.mail };
+            const response = axiosInstance.post('/delete/imap', data);
+            if(response.status == 204){
+              this.fetchEmailAccounts();
+            }
+            else{
+              console.error("Erreur lors de la suppression de l'adresse mail");
+            }
             this.isConfirming = false;
-          }
+          },
         },
         };
     </script>

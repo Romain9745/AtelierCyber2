@@ -27,7 +27,7 @@
 import Table from "@/components/commun/Table.vue";
 import SearchBar from "./commun/SearchBar.vue";
 import MailDetail from "./MailDetail.vue";
-import axios from 'axios'; // Import d'axios
+import axiosInstance from "@/AxiosInstance";
 
 export default {
   components: {
@@ -49,7 +49,7 @@ export default {
   methods: {
     async fetchBlockedEmails() {
       try {
-        const response = await axios.get('http://localhost:8000/blocked_emails');
+        const response = await axiosInstance.get('/blocked_emails');
         console.log("The answer is "+response.data.subject);
         this.tableData = response.data.map(email => ({
           recipient: email.recipient,

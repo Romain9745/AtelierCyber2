@@ -168,7 +168,7 @@ export default {
     },
     canEdit() {
       // Autoriser l'édition si le rôle est 2 ou si listname est "Blacklist Perso"
-      return this.authStore.role === 1 || this.listname === "Blacklist Perso";
+      return this.authStore.role === "Admin" || this.listname === "Blacklist Perso";
     }
   },
   methods: {

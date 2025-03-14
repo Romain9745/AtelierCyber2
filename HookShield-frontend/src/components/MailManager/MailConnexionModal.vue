@@ -6,7 +6,7 @@
       >
         <div class="relative p-4 w-full max-w-md max-h-full bg-white rounded-lg shadow-sm dark:bg-gray-700" @click="stopPropagation">
           <!-- Modal content -->
-          <div class="flex justify-between items-center p-4 border-b rounded-t dark:border-gray-600">
+          <div  class="flex justify-between items-center p-4 border-b rounded-t dark:border-gray-600">
             <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
               Connect with Email
             </h3>
@@ -33,7 +33,7 @@
             </button>
           </div>
           <!-- Modal body -->
-          <div class="p-4">
+          <div v-if="!showImapForm" class="p-4">
             <p class="text-sm font-normal text-gray-500 dark:text-gray-400">
               Connect with one of our available email providers or enter your
               custom IMAP credentials.
@@ -116,6 +116,49 @@
               </li>
             </ul>
           </div>
+          <!-- Form to input IMAP credentials -->
+        <div v-if="showImapForm" class="mt-4">
+          <div class="mb-4">
+            <label for="email" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Email</label>
+            <input
+              v-model="imapCredentials.email"
+              type="email"
+              id="email"
+              class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:bg-gray-800 dark:border-gray-600 dark:text-white"
+              placeholder="Enter your email"
+              required
+            />
+          </div>
+          <div class="mb-4">
+            <label for="host" class="block text-sm font-medium text-gray-700 dark:text-gray-300">IMAP Host</label>
+            <input
+              v-model="imapCredentials.host"
+              type="text"
+              id="host"
+              class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:bg-gray-800 dark:border-gray-600 dark:text-white"
+              placeholder="Enter IMAP server host"
+              required
+            />
+          </div>
+          <div class="mb-4">
+            <label for="password" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Password</label>
+            <input
+              v-model="imapCredentials.password"
+              type="password"
+              id="password"
+              class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:bg-gray-800 dark:border-gray-600 dark:text-white"
+              placeholder="Enter your password"
+              required
+            />
+          </div>
+          <p v-if="errorIMAP" class="text-sm text-red-500 dark:text-red-400">{{ errorIMAP }}</p>
+          <button
+            @click.prevent="submitImapCredentials"
+            class="w-full bg-indigo-600 text-white py-2 px-4 rounded-lg hover:bg-indigo-700"
+          >
+            Connect
+          </button>
+        </div>
         </div>
       </div>
   </template>
@@ -126,7 +169,14 @@
     data() {
       return {
         isModalOpen: false,
-      };
+        showImapForm: false,
+        imapCredentials: {
+          email: '',
+          host: '',
+          password: '',
+        },
+        errorIMAP: '',
+      }; 
     },
     methods: {
       closeModal() {
@@ -143,8 +193,28 @@
         console.log("Connecting with Outlook...");
       },
       connectWithImap() {
-        console.log("Connecting with IMAP...");
+      this.showImapForm = true;
       },
+      async submitImapCredentials() {
+        this.errorIMAP = '';
+        var data = {
+          host: this.imapCredentials.host,
+          email: this.imapCredentials.email,
+          password: this.imapCredentials.password,
+        };
+        console.log('Submitting IMAP credentials:', data);
+        // Send the credentials to the backend (FastAPI)
+        try {
+          const response = await axiosInstance.post('/login/imap', this.imapCredentials);
+          if (response.status === 200) {
+            console.log('Successfully connected with IMAP:', response.data);
+            this.closeModal();
+          }
+        } catch (error) {
+          console.error('Error connecting with IMAP:', error);
+          this.errorIMAP = 'Error connecting with IMAP. Please check your credentials.';
+        }
+    },
       stopPropagation(event) {
       event.stopPropagation(); // Empêche la propagation du clic vers les parents
       },
