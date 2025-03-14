@@ -12,7 +12,8 @@
   <script>
   import ListModalManager from "./ListModalManager.vue";
   import Table from "@/components/commun/Table.vue";
- import axiosInstance from "@/AxiosInstance";
+  import axiosInstance from "@/AxiosInstance";
+  import { useAuthStore } from "@/store/auth.js";
   
   export default {
     components: {
@@ -49,36 +50,56 @@
         selectedListName: null
       };
     },
+    computed: {
+      authStore() {
+      return useAuthStore();
+    }
+    },
     methods: {
-    async handleRowClick(rowData) {
-        try {
-            if (rowData.name === "Blacklist") {
-                this.selectedListName = "Blacklist";
-                const response = await axiosInstance.get('http://localhost:8000/main_blacklist');
-                this.selectedList = response.data.map(item => ({
-                    address: item.email,  
-                    description: item.reason 
-                })); 
-            } else if (rowData.name === "Whitelist") {
-                this.selectedListName = "Whitelist";
-                const response = await axiosInstance.get('http://localhost:8000/whitelist');
-                this.selectedList = response.data.map(item => ({
-                    address: item.email, 
-                    description: item.reason 
-                })); 
-            } else if (rowData.name === "Blacklist Perso") {
-                this.selectedListName = "Blacklist Perso";
-                const response = await axiosInstance.get('http://localhost:8000/user_blacklist');
-                this.selectedList = response.data.map(item => ({
-                    address: item.email, 
-                    description: item.reason 
-                })); 
-            }
-        } catch (error) {
-            console.error("Error fetching list:", error);
-            this.selectedList = [];  // Clear the list in case of error
-        }
+      async handleRowClick(rowData) {
+      try {
+          if (rowData.name === "Blacklist") {
+              this.selectedListName = "Blacklist";
+              const response = await axiosInstance.get('http://localhost:8000/main_blacklist');
+              this.selectedList = response.data.map(item => ({
+                  address: item.email,  
+                  description: item.reason 
+              })); 
+          } else if (rowData.name === "Whitelist") {
+              this.selectedListName = "Whitelist";
+              const response = await axiosInstance.get('http://localhost:8000/whitelist');
+              this.selectedList = response.data.map(item => ({
+                  address: item.email, 
+                  description: item.reason 
+              })); 
+          } else if (rowData.name === "Blacklist Perso") {
+              this.selectedListName = "Blacklist Perso";
+              console.log("AuthStore Email:", this.authStore?.email);
+              const entry = { email: this.authStore.email }; // Envoi de l'email dans le body
+              try {
+                  const response = await axiosInstance.post('http://localhost:8000/get_user_blacklist', entry);
+
+                  // Vérifier si la réponse contient des données ou un message
+                  if (Array.isArray(response.data)) {
+                      this.selectedList = response.data.map(item => ({
+                          address: item.email, 
+                          description: item.reason 
+                      }));
+                  } else if (response.data.message) {
+                      console.log(response.data.message);  // Afficher le message dans la console ou afficher une notification
+                      this.selectedList = [];  // Optionnel: afficher une liste vide si aucune entrée n'est trouvée
+                  }
+              } catch (error) {
+                  console.error("Erreur lors de la récupération de la blacklist perso :", error);
+              }
+          }
+
+          } catch (error) {
+              console.error("Error fetching list:", error);
+              this.selectedList = [];  // Clear the list in case of error
+          }
       },
+
     },
   };
   </script>
