@@ -101,9 +101,12 @@ CREATE TABLE notifications (
 -- Blacklist table
 CREATE TABLE blacklist (
     id INT AUTO_INCREMENT PRIMARY KEY,
+    user_email VARCHAR(255) users(email),
     email VARCHAR(100) NOT NULL UNIQUE,
     reason TEXT NOT NULL,
     added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    main_blacklist BOOLEAN DEFAULT FALSE,
+    UNIQUE(user_id, blacklisted_email)
     CONSTRAINT chk_email CHECK (email LIKE '%@%.%')
 );
 

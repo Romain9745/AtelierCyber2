@@ -1,7 +1,7 @@
 from sqlalchemy import CheckConstraint, Column, DateTime, Integer, String, TIMESTAMP, ForeignKey, func
 from sqlalchemy.orm import relationship
 from db.db import Base
-from sqlalchemy import Column, Integer, String, DateTime, Text, Boolean, ForeignKey, func, CheckConstraint, BigInteger, Enum
+from sqlalchemy import Column, Integer, String, DateTime, Text, Boolean, ForeignKey, func, CheckConstraint, UniqueConstraint, BigInteger, Enum
 from sqlalchemy.ext.declarative import declarative_base
 
 
@@ -19,6 +19,7 @@ class UserInDB(Base):
     last_login = Column(TIMESTAMP, nullable=True)
 
     role = relationship('UserRole', backref='users')
+    blacklists = relationship("BlacklistInDb", back_populates="user")
 
 class UserRole(Base):
     __tablename__ = 'user_roles'
@@ -28,15 +29,21 @@ class UserRole(Base):
     
 class BlacklistInDb(Base):
     __tablename__ = 'blacklist'
-    
+
     id = Column(Integer, primary_key=True, autoincrement=True)
-    email = Column(String(100))
-    reason = Column(String(100))
+    user_email = Column(String(255), ForeignKey('users.email', ondelete="CASCADE"), nullable=False)  # Référence à users.email
+    email = Column(String(100), nullable=False)
+    reason = Column(Text, nullable=False)  # Si reason est TEXT dans la table SQL
     added_at = Column(DateTime, default=func.now())
-    
+    main_blacklist = Column(Boolean, default=False)
+
+    # Contrainte d'intégrité et unicité
     __table_args__ = (
         CheckConstraint("email LIKE '%@%.%'", name='chk_email_format'),
+        UniqueConstraint('user_email', 'email', name='unique_user_email')  # Assurer l'unicité de la combinaison user_email + email
     )
+
+    user = relationship("UserInDB", back_populates="blacklists")
     
 class WhitelistInDb(Base):
     __tablename__ = 'whitelist'
@@ -51,18 +58,6 @@ class WhitelistInDb(Base):
     )
     
     
-class UserBlacklistInDb(Base):
-    __tablename__ = 'user_blacklist'
-    
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    email = Column(String(100))
-    reason = Column(String(100))
-    added_at = Column(DateTime, default=func.now())
-    
-    __table_args__ = (
-        CheckConstraint("email LIKE '%@%.%'", name='chk_email_format'),
-    )
-
 class MailsInDb(Base):
     __tablename__ = 'email_analyses'
     
