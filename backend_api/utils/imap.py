@@ -6,11 +6,9 @@ from email.utils import parsedate_tz, mktime_tz
 from email import policy
 from bs4 import BeautifulSoup
 from datetime import datetime
-from db.models import MailsInDb, EmailAccountinDB
-from pydantic import BaseModel
+from db.models import MailsInDb, EmailAccountinDB, UserStatsinDB, GlobalStatsinDB
 import email
 import asyncio
-from fastapi import HTTPException
 from utils.analyse import Email, analyse_email, EmailAnalysis
 
 tasks = {}
@@ -97,7 +95,12 @@ async def check_mail(email: Email, mail: str, client: IMAPClient,db: Session):
         email_analys = await analyse_email(email,mail,db)
         if email_analys.phishing_detected:
             client.move(email.email_id, "Spam")
-            print(f"Email moved to Junk: {email_analys.explanation}")
+            db.query(UserStatsinDB).filter(UserStatsinDB.user_id == email_analys.user_account_id).update({UserStatsinDB.mails_blocked: UserStatsinDB.mails_blocked + 1})
+            db.query(GlobalStatsinDB).first().update({GlobalStatsinDB.total_mails_blocked: GlobalStatsinDB.total_mails_blocked + 1})
+        else:
+            client.move(email.email_id, "Inbox")
+            db.query(UserStatsinDB).filter(UserStatsinDB.user_id == email_analys.user_account_id).update({UserStatsinDB.mail_authentic: UserStatsinDB.mail_authentic + 1})
+            db.query(GlobalStatsinDB).first().update({GlobalStatsinDB.total_mail_authentic: GlobalStatsinDB.total_mail_authentic + 1}) 
         db.add(MailsInDb(
                 source=email.from_email,
                 recipient=email.to_email,
@@ -111,6 +114,8 @@ async def check_mail(email: Email, mail: str, client: IMAPClient,db: Session):
                 folder_id=1,
                 source_email=mail
             ))
+        db.query(GlobalStatsinDB).first().update({GlobalStatsinDB.total_mail_analyzed: GlobalStatsinDB.total_mail_analyzed + 1})
+        db.query(UserStatsinDB).filter(UserStatsinDB.user_id == email_analys.user_account_id).update({UserStatsinDB.mail_analyzed: UserStatsinDB.mail_analyzed + 1})
         db.commit()
         db.refresh()
             

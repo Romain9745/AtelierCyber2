@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import and_
 from utils.db import get_db
@@ -19,28 +19,28 @@ class ListInfoToSend(BaseModel):
 class UserEmail(BaseModel):
     email: str
 
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
     
 @router.get('/main_blacklist')
 def get_main_blacklist(db: Session = Depends(get_db)):
+    results = db.query(BlacklistInDb.email, BlacklistInDb.reason).filter(BlacklistInDb.main_blacklist == True).all()
+
+    if not results:
+        # No need for try/except here; just raise 404 directly
+        raise HTTPException(status_code=404, detail="No blacklist entry found")
+
     try:
-        results = db.query(BlacklistInDb.email, BlacklistInDb.reason).filter(BlacklistInDb.main_blacklist == True).all()
-        if results:
-            return [ListInfoToSend(email=result.email, reason=result.reason) for result in results]
-        else:
-            raise HTTPException(status_code=404, detail="No blacklist entry found")
+        return [ListInfoToSend(email=result.email, reason=result.reason) for result in results]
+
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        print(f"Unexpected error: {e}")  # Debugging info
+        raise HTTPException(status_code=500, detail="Internal Server Error")
+
+
     
-@router.post('/get_user_blacklist')
-def get_main_blacklist(entry: UserEmail, db: Session = Depends(get_db)):
+@router.get('/user_blacklist')
+def get_main_blacklist(email: str = Query(..., min_length=5), db: Session = Depends(get_db)):
     try:
-        results = db.query(BlacklistInDb.email, BlacklistInDb.reason, BlacklistInDb.user_email).filter(and_(BlacklistInDb.user_email==entry.email, BlacklistInDb.main_blacklist == False)).all()
+        results = db.query(BlacklistInDb.email, BlacklistInDb.reason, BlacklistInDb.user_email).filter(and_(BlacklistInDb.user_email== email, BlacklistInDb.main_blacklist == False)).all()
         if results:
             for result in results:
                 print("user mail = "+result.user_email) 
@@ -48,16 +48,17 @@ def get_main_blacklist(entry: UserEmail, db: Session = Depends(get_db)):
         else:
             return {"message": "No blacklist entries found for this user."}    
     except Exception as e:
+        print(e)
         raise HTTPException(status_code=500, detail=str(e))
     
 @router.get('/whitelist')
 def get_whitelist(db: Session = Depends(get_db)):
+    results = db.query(WhitelistInDb.email, WhitelistInDb.reason).all()
+    if not results:
+        # No need for try/except here; just raise 404 directly
+        raise HTTPException(status_code=404, detail="No whitelist entry found")
     try:
-        results = db.query(WhitelistInDb.email, WhitelistInDb.reason).all()
-        if results:
-            return [ListInfoToSend(email=result.email, reason=result.reason) for result in results]
-        else:
-            raise HTTPException(status_code=404, detail="No whitelist entry found")
+        return [ListInfoToSend(email=result.email, reason=result.reason) for result in results]
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     
@@ -73,7 +74,7 @@ def add_to_main_blacklist(entry: ListInfo, db: Session = Depends(get_db)):
     
 @router.post('/user_blacklist')
 def add_to_user_blacklist(entry: ListInfo, db: Session = Depends(get_db)):
-    print(entry);
+    print(entry)
     try:
         new_entry = BlacklistInDb(email=entry.email, reason=entry.reason, main_blacklist=False, user_email=entry.user_email)
         db.add(new_entry)

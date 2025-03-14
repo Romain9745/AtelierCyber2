@@ -38,8 +38,9 @@ async def analyse_email(email: Email,account: str,db: Session) -> EmailAnalysis:
         if whitelist:
                 return EmailAnalysis(phishing_detected=False, explanation="email is whitelisted", user_account_id=user_account_id)
         # See for blacklist
-        blacklist = db.query(BlacklistInDb).filter(BlacklistInDb.email == email.from_email).first()
-        if blacklist:
+        GlobalBlacklist = db.query(BlacklistInDb).filter(BlacklistInDb.email == email.from_email,BlacklistInDb.main_blacklist == True).first()
+        UserBlacklist = db.query(BlacklistInDb).filter(BlacklistInDb.email == email.from_email,BlacklistInDb.user_email == user_account.email).first()
+        if GlobalBlacklist or UserBlacklist:
             return EmailAnalysis(phishing_detected=True, explanation="email is blacklisted", user_account_id=user_account_id)
 
         

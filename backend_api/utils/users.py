@@ -1,9 +1,10 @@
 from pydantic import BaseModel
 from enum import Enum
 from fastapi import HTTPException
-from db.models import UserInDB
+from db.models import UserInDB, GlobalStatsinDB
 from passlib.context import CryptContext
 from datetime import datetime
+
 
 class Role(Enum):
     admin = 1
@@ -78,6 +79,8 @@ def register(user: User, db):
         db.add(db_user)
         db.commit()
         db.refresh(db_user)
+        db.query(GlobalStatsinDB).first().total_users += 1
+        db.commit()
         return db_user
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -88,6 +91,8 @@ def delete(email, db):
         if not db_user:
             raise HTTPException(status_code=400, detail="User not found")
         db.delete(db_user)
+        db.commit()
+        db.query(GlobalStatsinDB).first().total_users -= 1
         db.commit()
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

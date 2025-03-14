@@ -100,17 +100,18 @@ CREATE TABLE notifications (
     FOREIGN KEY (email_id) REFERENCES email_analyses(id) ON DELETE CASCADE
 );
 
--- Blacklist table
 CREATE TABLE blacklist (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    user_email VARCHAR(255) users(email),
+    user_email VARCHAR(255),
     email VARCHAR(100) NOT NULL UNIQUE,
     reason TEXT NOT NULL,
     added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     main_blacklist BOOLEAN DEFAULT FALSE,
-    UNIQUE(user_id, blacklisted_email)
+    UNIQUE(user_email, email),
+    CONSTRAINT fk_user_email FOREIGN KEY (user_email) REFERENCES users(email),
     CONSTRAINT chk_email CHECK (email LIKE '%@%.%')
 );
+
 
 -- Whitelist table
 CREATE TABLE whitelist (
