@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 
 class Email(BaseModel):
+    email_id: int
     from_email: str
     to_email: str
     subject: str

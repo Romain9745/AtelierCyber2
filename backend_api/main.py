@@ -1,5 +1,7 @@
-from fastapi import FastAPI, Request, HTTPException
+from fastapi import FastAPI
+from cryptography.fernet import Fernet
 import uvicorn
+from contextlib import asynccontextmanager
 from routers.auth import router as auth
 from routers.mail_manager import router as mail_router
 from routers.admin import router as admin
@@ -7,8 +9,30 @@ from routers.blacklist import router as blacklist
 from routers.emails import router as emails
 from routers.stats import router as stats
 from fastapi.middleware.cors import CORSMiddleware
+from utils.db import get_db
+from utils.imap import start_imap_listeners, stop_imap_listeners
+from routers.stats import create_global_stats
 
-app = FastAPI()
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Gestion du cycle de vie de l'application"""
+    print("🚀 Démarrage de l'application...")
+
+    
+    db = next(get_db())  # Récupération d'une session DB
+    create_global_stats(db)  # Création des statistiques globales
+    start_imap_listeners(db)  # Démarrage des listeners IMAP
+
+    yield  # Attente que l'application tourne
+
+    print("🛑 Arrêt de l'application...")
+    stop_imap_listeners()  # Arrêt propre des listeners
+
+
+
+app = FastAPI(lifespan=lifespan)
 
 # Configurer CORS
 app.add_middleware(

@@ -1,8 +1,8 @@
 from fastapi import APIRouter, Depends
-from utils.users import get_db
 from pydantic import BaseModel
 from typing import List, Optional
 from datetime import datetime
+from utils.db import get_db
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from db.models import GlobalStatsinDB, UserStatsinDB, MailsInDb, ReportinDB, FileSignatureinDB
@@ -182,3 +182,16 @@ def get_user_stats_route(user_email: str, db: Session = Depends(get_db)):
     except Exception as e:
         print(e)
         return {"message": "Error fetching stats"}
+    
+
+def create_global_stats(db: Session):
+    try:
+        if db.query(GlobalStatsinDB).count() > 0:
+            return {"message": "Global stats already exist"}
+        new_global_stats = GlobalStatsinDB()
+        db.add(new_global_stats)
+        db.commit()
+        return {"message": "Global stats created"}
+    except Exception as e:
+        print(e)
+        return {"message": "Error creating global stats"}

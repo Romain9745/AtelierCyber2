@@ -2,10 +2,11 @@ from sqlalchemy.orm import Session
 from fastapi import APIRouter, Depends, HTTPException
 from db.models import UserInDB, UserStatsinDB
 from routers.auth import CheckRole
-from utils.users import UserInfo, get_db, register, delete, update, User, Role, ModifyUser
+from utils.users import UserInfo, register, delete, update, User, Role, ModifyUser
 from typing import List, Optional
 from pydantic import BaseModel
 from datetime import datetime
+from utils.db import get_db
 
 router = APIRouter(prefix="/admin",dependencies=[Depends(CheckRole(Role.admin))],tags=["Admin"])
 

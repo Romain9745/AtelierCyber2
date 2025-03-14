@@ -1,7 +1,7 @@
 from pydantic import BaseModel
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from db.db import SessionLocal
+from utils.db import get_db
 from db.models import MailsInDb
 
 router = APIRouter(tags=["mails"])
@@ -15,12 +15,6 @@ class MailInfo(BaseModel):
 class MailBodyInfo(BaseModel):
     email_body: str
 
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
         
 @router.get('/blocked_emails')
 def get_emails(db: Session = Depends(get_db)):

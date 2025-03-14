@@ -15,3 +15,5 @@ imapclient
 bs4
 httpx
 google-api-python-client
+fernet
+python-dotenv

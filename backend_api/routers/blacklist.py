@@ -1,7 +1,7 @@
 from pydantic import BaseModel
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from db.db import SessionLocal
+from utils.db import get_db
 from db.models import BlacklistInDb, WhitelistInDb, UserBlacklistInDb
 
 router = APIRouter(tags=["Blacklist"])
@@ -9,13 +9,6 @@ router = APIRouter(tags=["Blacklist"])
 class ListInfo(BaseModel):
     email: str
     reason: str
-
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
     
 @router.get('/main_blacklist')
 def get_main_blacklist(db: Session = Depends(get_db)):

@@ -2,158 +2,73 @@ from fastapi import APIRouter, Request, HTTPException, BackgroundTasks, Depends
 import webbrowser, json, imaplib, requests, base64, email, time
 from starlette.responses import RedirectResponse
 import time
-from email import policy
-from email.utils import parsedate_tz, mktime_tz
-from bs4 import BeautifulSoup
 from utils.analyse import Email, analyse_email, EmailAnalysis
 from db.models import MailsInDb,EmailAccountinDB,UserInDB,EmailAccountTypeinDB
 from datetime import datetime
-import asyncio
 from sqlalchemy.orm import Session
-from db.db import SessionLocal
+from utils.db import get_db
 from routers.auth import get_current_user
 from utils.users import UserInfo,pwd_context
 from typing import Annotated
 from datetime import datetime
+from utils.imap import start_imap_listener_after_login, stop_imap_listener
+from config import cipher
+from pydantic import BaseModel
 
-global running
-running = False
 
 
 router = APIRouter(tags=["MailManager"])
 
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+class EmailDeleteRequest(BaseModel):
+    email: str
 
+class IMAPLogin(BaseModel):
+    host: str
+    email: str
+    password: str
+
+
+@router.get("/email_accounts")
+def get_email_accounts(user: Annotated[UserInfo, Depends(get_current_user)], db: Session = Depends(get_db)):
+    email_accounts = db.query(EmailAccountinDB).join(EmailAccountinDB.added_by_user).filter(UserInDB.email == user.email).all()
+    return email_accounts
 
 # IMAP Login
 #----------------------------------------------------------------------------------------------------------------------------
 from imapclient import IMAPClient
 
-def imap_login(server: str, email: str, password: str, db: Session):
+def imap_login(host: str, email: str, password: str, db: Session):
     try:
-        mail = imaplib.IMAP4_SSL(server)
+        mail = imaplib.IMAP4_SSL(host)
         mail.login(email, password)
         return True
     except Exception as e:
         raise HTTPException(status_code=401, detail=str(e))
 
 @router.post("/login/imap")
-def login(server: str, email: str, password: str,background_tasks: BackgroundTasks,user: Annotated[UserInfo, Depends(get_current_user)], db: Session = Depends(get_db),):
-    if imap_login(server, email, password, db):
+def login(request : IMAPLogin,user: Annotated[UserInfo, Depends(get_current_user)], background_tasks: BackgroundTasks,db: Session = Depends(get_db)):
+    if imap_login(request.host, request.email, request.password, db):
         userinDB = db.query(UserInDB).filter(UserInDB.email == user.email).first()
         if userinDB:
-            encrypted_password = pwd_context.hash(password)
-            db.add(EmailAccountinDB(email=email, added_by=userinDB.id, account_type=1, imap_password=encrypted_password, imap_host=server,created_at=datetime.now()))
+            encrypted_password = cipher.encrypt(request.password.encode()).decode()
+            db.add(EmailAccountinDB(email=request.email, added_by=userinDB.id, account_type=1, imap_password=encrypted_password, imap_host=request.host,created_at=datetime.now()))
             db.commit()
-            background_tasks.add_task(start_imap_listener, email, password, server,db)
-            return {"message": "IMAP account added successfully"}
+            background_tasks.add_task(start_imap_listener_after_login, request.email, request.password, request.host, db)
+            return {"message": "IMAP account added successfully "}
+        
+@router.post("/delete/imap")
+def delete_imap(request: EmailDeleteRequest,user: Annotated[UserInfo, Depends(get_current_user)], db: Session = Depends(get_db)):
+    email_account = db.query(EmailAccountinDB).filter(EmailAccountinDB.email == request.email).first()
+    if email_account.added_by_user.email != user.email:
+        raise HTTPException(status_code=401, detail="You are not authorized to delete this account")
+    if not email_account:
+        raise HTTPException(status_code=404, detail="Email account not found")
 
-async def check_mail(email: Email, mail: str, client: IMAPClient,db: Session):
-    try:
-        email_analys = await analyse_email(email,mail,db)
-        if email_analys.phishing_detected:
-            client.move(mail, "Spam")
-            print(f"Email moved to Junk: {email_analys.explanation}")
-        db.add(MailsInDb(
-                source=email.from_email,
-                recipient=email.to_email,
-                subject=email.subject,
-                explanation=email_analys.explanation,
-                email_body=email.body,
-                receive_date=email.timestamp,
-                analyzed_date=datetime.now(),
-                is_phishing=email_analys.phishing_detected,
-                blocked_date=datetime.now(),
-                folder_id=1,
-                source_email=mail
-            ))
-        db.commit()
-        db.refresh()    
-    except Exception as e:
-        print(f"Error analysing email: {e}")
+    db.delete(email_account)
+    db.commit()
+    stop_imap_listener(email)
+    return {"message": "IMAP account deleted successfully",}
 
-async def start_imap_listener(email: str, password: str, imap_server: str,db: Session):
-    """Garde la connexion ouverte et vérifie les nouveaux emails"""
-    global running
-    running = True
-    while running:
-        try:
-            with IMAPClient(imap_server) as client:
-                client.login(email, password)
-                client.select_folder("INBOX")
-                
-                while running:
-                    messages = client.search("UNSEEN")
-                    if messages:
-                        print(f"📩 {len(messages)} new email(s)!")
-                        mail = fetch_latest_email(client)
-                        print(mail)
-                        if mail:
-                            asyncio.create_task(check_mail(mail, email, client,db))
-                        
-                    
-                    await asyncio.sleep(5)  # Vérifie toutes les 5 secondes
-
-        except Exception as e:
-            print(f"Connection lost: {e}. Reconnecting in 10 seconds...")
-            await asyncio.sleep(10)  # Attente avant reconnexion
-
-def fetch_latest_email(client):
-    """Fetches the latest unread email"""
-    try:
-        messages = client.search("UNSEEN")  # Fetch unread emails
-        if not messages:
-            return
-
-        latest_email_id = messages[-1]
-        response = client.fetch(latest_email_id, ["RFC822"])
-        raw_email = response[latest_email_id][b"RFC822"]
-
-        msg = email.message_from_bytes(raw_email, policy=policy.default)
-
-        sender = msg["from"]
-        recipient = msg["to"]
-        subject = msg["subject"]
-        date_str = msg["date"]
-
-        # Convert email date to timestamp
-        timestamp = None
-        if date_str:
-            parsed_date = parsedate_tz(date_str)  # Parse the date
-            if parsed_date:
-                timestamp = mktime_tz(parsed_date)  # Convert to timestamp (seconds)
-
-        body = ""
-
-        # Extract email content
-        if msg.is_multipart():
-            for part in msg.walk():
-                content_type = part.get_content_type()
-                if content_type == "text/plain":
-                    body = part.get_payload(decode=True).decode(part.get_content_charset(), errors="ignore")
-                    break
-                elif content_type == "text/html" and not body:
-                    body = part.get_payload(decode=True).decode(part.get_content_charset(), errors="ignore")
-        else:
-            body = msg.get_payload(decode=True).decode(msg.get_content_charset(), errors="ignore")
-
-        # Convert HTML to text if necessary
-        text_body = BeautifulSoup(body, "html.parser").get_text()
-
-        return Email(from_email=sender, to_email=recipient, subject=subject, body=text_body, timestamp=datetime.fromtimestamp(timestamp))
-    except Exception as e: 
-        print(f"Error fetching email: {e}")
-
-@router.post("/stop_imap_listener")
-def stop_imap_listener():
-    global running
-    running = False
-    return {"message": "IMAP listener stopped"}
 
 #----------------------------------------------------------------------------------------------------------------------------
 

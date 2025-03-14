@@ -4,8 +4,9 @@ from sqlalchemy.orm import Session
 from db.db import SessionLocal
 import jwt
 from utils.jwt_auth import create_access_token, create_refresh_token
-from utils.users import get_user_hashed_password, get_user_info, pwd_context, UserInfo, get_db, register, User, Role, modif_last_login
-from db.models import UserInDB
+from utils.users import get_user_hashed_password, get_user_info, pwd_context, UserInfo, register, User, Role, modif_last_login
+from utils.db import get_db
+from db.models import UserInDB, UserStatsinDB
 
 
 
@@ -101,6 +102,13 @@ def first_admin_account(user: User,db: Session = Depends(get_db)):
     if is_User_Table_Empty:
         user.role = Role.admin
         new_user = register(user, db)
+        new_stats = UserStatsinDB(user_id=new_user.id)
+        try:
+            db.add(new_stats)
+            db.commit()
+            db.refresh(new_user)
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
         return {"message": "First admin account created", "user_id": new_user.id}
     else:
         raise HTTPException(status_code=403, detail="Forbidden")

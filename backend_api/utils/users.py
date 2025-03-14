@@ -3,7 +3,6 @@ from enum import Enum
 from fastapi import HTTPException
 from db.models import UserInDB
 from passlib.context import CryptContext
-from db.db import SessionLocal
 from datetime import datetime
 
 class Role(Enum):
@@ -32,12 +31,7 @@ class UserInfo(BaseModel):
     email: str
     role: Role
 
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+
 
 def modif_last_login(db, email):
     try:
