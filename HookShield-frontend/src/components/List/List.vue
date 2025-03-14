@@ -27,24 +27,6 @@
           { name: 'Whitelist', sender: 'Aucune verification sur ces adresses'},
           { name: 'Blacklist Perso', sender: 'Liste adresses mails à bloquer'},
         ],
-        blacklist: [
-          { address: 'r.arg@gmail.com', description: 'spam' },
-          { address: 'junkmail123@outlook.com', description: 'newsletter' },
-          { address: 'scammer@fakeemail.com', description: 'scam' },
-          { address: 'no-reply@companyxyz.com', description: 'marketing' },
-          { address: 'sales@randomstore.com', description: 'promotion' },
-          { address: 'alerts@bankxyz.com', description: 'phishing' },
-          { address: 'admin@socialmedia.com', description: 'advertisement' },
-          { address: 'bot@automatedservices.com', description: 'auto-generated' },
-          { address: 'support@untrusted.com', description: 'spam' },
-          { address: 'info@fraudsite.com', description: 'fraud' },
-        ],
-        whitelist: [
-        { address: 'michel@gmail.com', description: "c'est un collègue" },
-        { address: 'bot@automatedservices.com', description: 'ces mails sont drôles' },
-        { address: 'associationdespecheurspros@outlook.com', description: 'fishing' },
-        ],
-
         headers: ['Nom de la liste', 'description'],
         selectedList: null,
         selectedListName: null
@@ -60,14 +42,21 @@
       try {
           if (rowData.name === "Blacklist") {
               this.selectedListName = "Blacklist";
-              const response = await axiosInstance.get('http://localhost:8000/main_blacklist');
-              this.selectedList = response.data.map(item => ({
+              const response = await axiosInstance.get('/main_blacklist');
+              if(response.status != 200){
+                this.selectedList = [];
+              }
+              else{
+                this.selectedList = response.data.map(item => ({
                   address: item.email,  
                   description: item.reason 
               })); 
+              }
+              
+
           } else if (rowData.name === "Whitelist") {
               this.selectedListName = "Whitelist";
-              const response = await axiosInstance.get('http://localhost:8000/whitelist');
+              const response = await axiosInstance.get('/whitelist');
               this.selectedList = response.data.map(item => ({
                   address: item.email, 
                   description: item.reason 
@@ -77,7 +66,9 @@
               console.log("AuthStore Email:", this.authStore?.email);
               const entry = { email: this.authStore.email }; // Envoi de l'email dans le body
               try {
-                  const response = await axiosInstance.post('http://localhost:8000/get_user_blacklist', entry);
+                const response = await axiosInstance.get(`user_blacklist`, {
+                  params: { email: this.authStore.email }  // 🔹 Passer l'email en paramètre d'URL
+                });
 
                   // Vérifier si la réponse contient des données ou un message
                   if (Array.isArray(response.data)) {

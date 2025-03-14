@@ -18,6 +18,9 @@
             </tr>
           </thead>
           <tbody>
+            <tr v-if="emails.length === 0">
+              <td class="border border-gray-300 px-4 py-2 text-center" colspan="2">Aucun email</td>
+            </tr>
             <tr
               v-for="(email, index) in emails"
               :key="index"
@@ -96,6 +99,7 @@
   <script>
 import ConfirmationModal from "@/components/commun/ConfirmationModal.vue";
 import { useAuthStore } from "@/store/auth.js";
+import axiosInstance from "@/AxiosInstance";
 
 export default {
   components: {
@@ -181,16 +185,16 @@ export default {
     },
     async addToBlacklist(entry) {
       try {
-        const response = await fetch('http://localhost:8000/main_blacklist', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(entry),
-        });
-
-        if (!response.ok) {
+        const response = await axiosInstance.post('/main_blacklist', entry);
+        if (!response.status === 200) {
           throw new Error('Erreur lors de l\'ajout à la blacklist');
+        }
+        else
+        {
+          this.emails.push({
+            address: entry.email,
+            description: entry.reason
+          });
         }
 
       } catch (error) {
@@ -199,16 +203,16 @@ export default {
     },
     async addToWhitelist(entry) {
       try {
-        const response = await fetch('http://localhost:8000/whitelist', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(entry),
-        });
-
-        if (!response.ok) {
+        const response = await axiosInstance.post('/whitelist', entry);
+        if (!response.status === 200) {
           throw new Error('Erreur lors de l\'ajout à la whitelist');
+        }
+        else
+        {
+          this.emails.push({
+            address: entry.email,
+            description: entry.reason
+          });
         }
 
       } catch (error) {
@@ -217,16 +221,16 @@ export default {
     },
     async addTouserBlacklist(entry) {
       try {
-        const response = await fetch('http://localhost:8000/user_blacklist', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(entry),
-        });
-
-        if (!response.ok) {
+        const response = await axiosInstance.post('/user_blacklist', entry);
+        if (!response.status === 200) {
           throw new Error('Erreur lors de l\'ajout à la blacklist');
+        }
+        else
+        {
+          this.emails.push({
+            address: entry.email,
+            description: entry.reason
+          });
         }
 
       } catch (error) {
@@ -237,16 +241,13 @@ export default {
       try {
         let endpoint = '';
         if (this.listname === 'Blacklist') {
-            endpoint = 'http://localhost:8000/blacklist';
+            endpoint = '/blacklist';
         } else if (this.listname === 'Whitelist') {
-            endpoint = 'http://localhost:8000/whitelist';
+            endpoint = '/whitelist';
         } else if (this.listname === 'Blacklist Perso') {
-            endpoint = 'http://localhost:8000/blacklist';
+            endpoint = '/blacklist';
         }
-        const response = await fetch(`${endpoint}?email=${encodeURIComponent(this.selectedEmail.address)}`, {
-          method: 'DELETE',
-        });
-
+        const response = await axiosInstance.delete(`${endpoint}?email=${encodeURIComponent(this.selectedEmail.address)}`)
         if (!response.ok) {
           throw new Error('Erreur lors de la suppression de l\'email');
         }
