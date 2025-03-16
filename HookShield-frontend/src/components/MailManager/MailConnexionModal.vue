@@ -179,8 +179,8 @@
       }; 
     },
     methods: {
-      closeModal() {
-        this.$emit("close");
+      closeModal(email) {
+        this.$emit("close",email);
       },
       async connectWithGoogle() {
         console.log("Connecting with Google...");
@@ -208,7 +208,7 @@
           const response = await axiosInstance.post('/login/imap', this.imapCredentials);
           if (response.status === 200) {
             console.log('Successfully connected with IMAP:', response.data);
-            this.closeModal();
+            this.closeModal(data.email);
           }
         } catch (error) {
           console.error('Error connecting with IMAP:', error);

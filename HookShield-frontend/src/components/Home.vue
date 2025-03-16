@@ -5,7 +5,7 @@
       <SearchBar :data="tableData" @update:data="tableData = $event" />
     </div>
     
-    <Table v-if="tableData.length > 0" :data="tableData" :headers="headers" @row-click="handleRowClick" />
+    <Table :data="tableData" :headers="headers" @row-click="handleRowClick" />
 
 <!-- Modal du détail du mail 
     <div v-if="selectedEmail" class="mt-8 p-4 bg-gray-200 dark:bg-gray-800 rounded-lg">
@@ -68,7 +68,7 @@ export default {
       this.email_body = ""; // Réinitialise le corps de l'email
 
       try {
-        const response = await axios.get('http://localhost:8000/email_body', {
+        const response = await axiosInstance.get('/email_body', {
           params: {
             source: rowData.sender,
             recipient: rowData.recipient,

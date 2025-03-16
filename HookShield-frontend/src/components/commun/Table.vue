@@ -56,7 +56,12 @@
       </tr>
     </thead>
     <tbody>
-      <tr
+      <tr v-if="data.length === 0">
+        <td class="border border-gray-300 dark:border-gray-700 p-2 text-center" :colspan="headers.length">
+          Aucune donnée
+        </td>
+      </tr>
+      <tr v-if ="data.length > 0"
         v-for="(row, rowIndex) in sorted"
         :key="rowIndex"
         @click="VizualiseRow(row, rowIndex)"

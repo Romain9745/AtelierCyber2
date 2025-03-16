@@ -11,7 +11,7 @@
       </div>
       </div>
       <ConfirmationModal v-if="isConfirming" question="Êtes-vous sûr de vouloir supprimer cette adresse email ?" @close="isConfirming = false" @delete="SupressEmailAdress" />
-      <MailConnexionModal v-if="isAdding" @close="isAdding = false" />
+      <MailConnexionModal v-if="isAdding" @close="Added" />
   </template>
 
     <script>
@@ -59,6 +59,9 @@
           },
         Add(){
             this.isAdding = true;
+          },
+        Added(email){
+            this.tableData.push({mail: email});
           },
         ConfirmSupress(){
             this.isConfirming = true;

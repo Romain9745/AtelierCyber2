@@ -94,8 +94,8 @@ export default {
           this.globalStats = response.data.global_stats;
           console.log(this.globalStats);
           this.totalStats = [
-            { label: "Mails Phishing", value: this.globalStats.total_mail_authentic},
-            {label: "Mails Non-Phishing", value: this.globalStats.total_mails_blocked}
+            { label: "Mails Phishing", value: this.globalStats.total_mails_blocked},
+            {label: "Mails Non-Phishing", value: this.globalStats.total_mail_authentic}
           ]
         }
         const response = await axiosInstance.get('/stats/me');
