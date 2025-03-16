@@ -23,20 +23,35 @@ CREATE TABLE users (
     FOREIGN KEY (role_id) REFERENCES user_roles(id) ON DELETE CASCADE
 );
 
+--Email account types
+CREATE TABLE email_account_types (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    type_name ENUM('imap', 'Google') NOT NULL
+);
+INSERT INTO email_account_types (type_name) VALUES ('imap'), ('Google');
+
 -- Email accounts table
 CREATE TABLE email_accounts (
     id INT AUTO_INCREMENT PRIMARY KEY,
     email VARCHAR(255) UNIQUE NOT NULL,
     added_by INT NOT NULL,
+    account_type INT NOT NULL,
+    imap_host VARCHAR(255),
+    imap_password VARCHAR(255),
+    token VARCHAR(255),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (added_by) REFERENCES users(id) ON DELETE CASCADE
+    FOREIGN KEY (added_by) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (account_type) REFERENCES email_account_types(id) ON DELETE CASCADE
 );
+
+
 
 -- Email folders table
 CREATE TABLE email_folders (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    name ENUM('hookshield_spam') NOT NULL
+    name ENUM('HOOKSHIELD_SPAM','INBOX') NOT NULL
 );
+INSERT INTO email_folders (name) VALUES ('HOOKSHIELD_SPAM'), ('INBOX');
 
 -- Email analyses table
 CREATE TABLE email_analyses (
@@ -51,6 +66,8 @@ CREATE TABLE email_analyses (
     blocked_date TIMESTAMP NULL,
     explanation TEXT NOT NULL,
     folder_id INT NOT NULL,
+    source_email VARCHAR(255) NOT NULL,
+    FOREIGN KEY (source_email) REFERENCES email_accounts(email) ON DELETE CASCADE,
     FOREIGN KEY (recipient) REFERENCES email_accounts(email) ON DELETE CASCADE,
     FOREIGN KEY (folder_id) REFERENCES email_folders(id) ON DELETE CASCADE
 );
@@ -87,8 +104,21 @@ CREATE TABLE notifications (
     FOREIGN KEY (email_id) REFERENCES email_analyses(id) ON DELETE CASCADE
 );
 
--- Blacklist table
 CREATE TABLE blacklist (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_email VARCHAR(255),
+    email VARCHAR(100) NOT NULL UNIQUE,
+    reason TEXT NOT NULL,
+    added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    main_blacklist BOOLEAN DEFAULT FALSE,
+    UNIQUE(user_email, email),
+    CONSTRAINT fk_user_email FOREIGN KEY (user_email) REFERENCES users(email),
+    CONSTRAINT chk_email CHECK (email LIKE '%@%.%')
+);
+
+
+-- Whitelist table
+CREATE TABLE whitelist (
     id INT AUTO_INCREMENT PRIMARY KEY,
     email VARCHAR(100) NOT NULL UNIQUE,
     reason TEXT NOT NULL,
@@ -102,8 +132,10 @@ CREATE TABLE file_signatures (
     filename VARCHAR(255) NOT NULL,
     file_hash VARCHAR(64) NOT NULL UNIQUE,
     file_type VARCHAR(50) NOT NULL,
+    email_id INT NOT NULL,
     detected_malware BOOLEAN DEFAULT FALSE,
-    detected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    detected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (email_id) REFERENCES email_analyses(id) ON DELETE CASCADE
 );
 
 -- Global statistics table
@@ -124,6 +156,9 @@ CREATE TABLE user_stats (
     id INT AUTO_INCREMENT PRIMARY KEY,
     user_id INT NOT NULL,
     total_reports INT DEFAULT 0,
+    mail_analyzed INT DEFAULT 0,
+    mail_authentic INT DEFAULT 0,
+    mails_blocked INT DEFAULT 0,
     last_action TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
