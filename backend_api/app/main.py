@@ -12,7 +12,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from utils.db import get_db
 from utils.imap import start_imap_listeners, stop_imap_listeners
 from routers.stats import create_global_stats
-
+from routers.auth import create_first_admin_account
 
 
 @asynccontextmanager
@@ -23,6 +23,7 @@ async def lifespan(app: FastAPI):
     
     db = next(get_db())  # Récupération d'une session DB
     create_global_stats(db)  # Création des statistiques globales
+    create_first_admin_account(db)  # Création du premier compte admin si nécessaire
     start_imap_listeners(db)  # Démarrage des listeners IMAP
 
     yield  # Attente que l'application tourne
@@ -37,7 +38,7 @@ app = FastAPI(lifespan=lifespan)
 # Configurer CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=["http://localhost:5173","http://localhost:4173"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -57,4 +58,4 @@ app.include_router(stats)
 
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="127.0.0.1", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=8000)

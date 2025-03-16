@@ -112,6 +112,23 @@ def first_admin_account(user: User,db: Session = Depends(get_db)):
         return {"message": "First admin account created", "user_id": new_user.id}
     else:
         raise HTTPException(status_code=403, detail="Forbidden")
+    
+def create_first_admin_account(db: Session):
+    is_User_Table_Empty = db.query(UserInDB).count() == 0
+    if is_User_Table_Empty:
+        user = fake_User
+        user.role = Role.admin
+        new_user = register(user, db)
+        new_stats = UserStatsinDB(user_id=new_user.id)
+        try:
+            db.add(new_stats)
+            db.commit()
+            db.refresh(new_user)
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+        return {"message": "First admin account created", "user_id": new_user.id}
+    else:
+        raise HTTPException(status_code=403, detail="Forbidden")
 
 class CheckRole:
     def __init__(self, role: Role):
