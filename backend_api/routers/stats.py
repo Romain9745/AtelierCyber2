@@ -44,7 +44,6 @@ class FileStats(BaseModel):
 
 class StatsResponse(BaseModel):
     global_stats: GlobalStats
-    user_stats: List[UserStats]
     email_stats: MailStats
     report_stats: ReportStats
     file_stats: FileStats
@@ -78,9 +77,7 @@ def fetch_stats(db) -> StatsResponse:
     global_stats = db.query(GlobalStatsinDB).first()
     if not global_stats:
         raise ValueError("Global stats not found")
-
-    # Query the user stats (adjust according to your requirements)
-    user_stats = db.query(UserStatsinDB).all()
+    print(global_stats)
 
     # Email stats: Using SQLAlchemy functions to count and sum
     email_stats = db.query(
@@ -89,17 +86,33 @@ def fetch_stats(db) -> StatsResponse:
         func.sum((~MailsInDb.is_phishing)).label("total_mail_authentic")
     ).first()
 
+    email_stats_dict = {
+        "total_emails": email_stats.total_emails or 0,
+        "total_mails_blocked": email_stats.total_mails_blocked or 0,
+        "total_mail_authentic": email_stats.total_mail_authentic or 0
+    }
+
     # Report stats: Calculate false positives and false negatives
     report_stats = db.query(
         func.sum((ReportinDB.report_type == 'false_positive')).label("total_false_positive"),
         func.sum((ReportinDB.report_type == 'false_negative')).label("total_false_negative")
     ).first()
 
+    report_stats_dict = {
+        "total_false_positive": report_stats.total_false_positive or 0,
+        "total_false_negative": report_stats.total_false_negative or 0
+    }
+
     # File stats: Count files scanned and sum malware detections
     file_stats = db.query(
         func.count(FileSignatureinDB.id).label("total_files_scanned"),
         func.sum(FileSignatureinDB.detected_malware).label("total_malware_detected")
     ).first()
+
+    file_stats_dict = {
+        "total_files_scanned": file_stats.total_files_scanned or 0,
+        "total_malware_detected": file_stats.total_malware_detected or 0
+    }
 
     # Return the stats in the required format
     return StatsResponse(
@@ -114,28 +127,9 @@ def fetch_stats(db) -> StatsResponse:
             total_false_negative=global_stats.total_false_negative,
             last_updated=global_stats.last_updated
         ),
-        user_stats=[UserStats(
-            id=user.id,
-            user_id=user.user_id,
-            total_reports=user.total_reports,
-            mail_analyzed=user.mail_analyzed,
-            mail_authentic=user.mail_authentic,
-            mail_blocked=user.mails_blocked,
-            last_action=user.last_action
-        ) for user in user_stats],
-        email_stats=MailStats(
-            total_emails=email_stats.total_emails,
-            total_mails_blocked=email_stats.total_mails_blocked,
-            total_mail_authentic=email_stats.total_mail_authentic
-        ),
-        report_stats=ReportStats(
-            total_false_positive=report_stats.total_false_positive,
-            total_false_negative=report_stats.total_false_negative
-        ),
-        file_stats=FileStats(
-            total_files_scanned=file_stats.total_files_scanned,
-            total_malware_detected=file_stats.total_malware_detected
-        )
+        email_stats=MailStats(**email_stats_dict),
+        report_stats=ReportStats(**report_stats_dict),
+        file_stats=FileStats(**file_stats_dict)
     )
 
 def get_user_stats(user_email: str, db) -> UserStats:

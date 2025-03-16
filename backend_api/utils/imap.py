@@ -9,6 +9,7 @@ from datetime import datetime
 from db.models import MailsInDb, EmailAccountinDB, UserStatsinDB, GlobalStatsinDB
 import email
 import asyncio
+from email.utils import parseaddr
 from utils.analyse import Email, analyse_email, EmailAnalysis
 
 tasks = {}
@@ -90,37 +91,61 @@ def stop_imap_listener(email: str):
 
 
 
-async def check_mail(email: Email, mail: str, client: IMAPClient,db: Session):
+async def check_mail(email: Email, mail: str, client: IMAPClient, db: Session):
     try:
-        email_analys = await analyse_email(email,mail,db)
+        email_analys = await analyse_email(email, mail, db)
+        spam_folder = "INBOX/HOOKSHIELD_SPAM"
+
+        # Vérifier si le dossier existe, sinon le créer
+        if spam_folder not in [folder[2] for folder in client.list_folders()]:
+            client.create_folder(spam_folder)
+
+        # Déplacer les e-mails dans le dossier approprié
         if email_analys.phishing_detected:
-            client.move(email.email_id, "Spam")
-            db.query(UserStatsinDB).filter(UserStatsinDB.user_id == email_analys.user_account_id).update({UserStatsinDB.mails_blocked: UserStatsinDB.mails_blocked + 1})
-            db.query(GlobalStatsinDB).first().update({GlobalStatsinDB.total_mails_blocked: GlobalStatsinDB.total_mails_blocked + 1})
+            client.move(email.email_id, spam_folder)
+            db.query(UserStatsinDB).filter(UserStatsinDB.user_id == email_analys.user_account_id).update({
+                UserStatsinDB.mails_blocked: UserStatsinDB.mails_blocked + 1
+            })
+            global_stats = db.query(GlobalStatsinDB).first()
+            if global_stats:
+                global_stats.total_mails_blocked += 1
         else:
-            client.move(email.email_id, "Inbox")
-            db.query(UserStatsinDB).filter(UserStatsinDB.user_id == email_analys.user_account_id).update({UserStatsinDB.mail_authentic: UserStatsinDB.mail_authentic + 1})
-            db.query(GlobalStatsinDB).first().update({GlobalStatsinDB.total_mail_authentic: GlobalStatsinDB.total_mail_authentic + 1}) 
+            client.move(email.email_id, "INBOX")
+            db.query(UserStatsinDB).filter(UserStatsinDB.user_id == email_analys.user_account_id).update({
+                UserStatsinDB.mail_authentic: UserStatsinDB.mail_authentic + 1
+            })
+            global_stats = db.query(GlobalStatsinDB).first()
+            if global_stats:
+                global_stats.total_mail_authentic += 1
+
         db.add(MailsInDb(
-                source=email.from_email,
-                recipient=email.to_email,
-                subject=email.subject,
-                explanation=email_analys.explanation,
-                email_body=email.body,
-                receive_date=email.timestamp,
-                analyzed_date=datetime.now(),
-                is_phishing=email_analys.phishing_detected,
-                blocked_date=datetime.now(),
-                folder_id=1,
-                source_email=mail
-            ))
-        db.query(GlobalStatsinDB).first().update({GlobalStatsinDB.total_mail_analyzed: GlobalStatsinDB.total_mail_analyzed + 1})
-        db.query(UserStatsinDB).filter(UserStatsinDB.user_id == email_analys.user_account_id).update({UserStatsinDB.mail_analyzed: UserStatsinDB.mail_analyzed + 1})
+            source=email.from_email,
+            recipient=email.to_email,
+            subject=email.subject,
+            explanation=email_analys.explanation,
+            email_body=email.body,
+            receive_date=email.timestamp,
+            analyzed_date=datetime.now(),
+            is_phishing=email_analys.phishing_detected,
+            blocked_date=datetime.now(),
+            folder_id=1,
+            source_email=mail
+        ))
+
+        # Mise à jour du nombre total de mails analysés
+        global_stats = db.query(GlobalStatsinDB).first()
+        if global_stats:
+            global_stats.total_mail_analyzed += 1
+
+        db.query(UserStatsinDB).filter(UserStatsinDB.user_id == email_analys.user_account_id).update({
+            UserStatsinDB.mail_analyzed: UserStatsinDB.mail_analyzed + 1
+        })
+
         db.commit()
-        db.refresh()
-            
+
     except Exception as e:
         print(f"Error analysing email: {e}")
+
 
 
 
@@ -141,6 +166,9 @@ def fetch_latest_email(client):
         recipient = msg["to"]
         subject = msg["subject"]
         date_str = msg["date"]
+
+        sender_email = parseaddr(sender)[1]  # Extract only the email address
+        recipient_email = parseaddr(recipient)[1]
 
         # Convert email date to timestamp
         timestamp = None
@@ -166,7 +194,7 @@ def fetch_latest_email(client):
         # Convert HTML to text if necessary
         text_body = BeautifulSoup(body, "html.parser").get_text()
 
-        return Email(email_id=latest_email_id,from_email=sender, to_email=recipient, subject=subject, body=text_body, timestamp=datetime.fromtimestamp(timestamp))
+        return Email(email_id=latest_email_id,from_email=sender_email, to_email=recipient_email, subject=subject, body=text_body, timestamp=datetime.fromtimestamp(timestamp))
     except Exception as e: 
         print(f"Error fetching email: {e}")
 

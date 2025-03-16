@@ -26,7 +26,7 @@ def get_emails(db: Session = Depends(get_db)):
         if results:
             return [MailInfo(source=result.source, recipient=result.recipient, subject=result.subject, explanation=result.explanation) for result in results]
         else:
-            raise HTTPException(status_code=404, detail="No blacklist entry found")
+            return {"message ": "No blacklist entries found for this user."}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     

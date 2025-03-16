@@ -78,6 +78,12 @@ class WhitelistInDb(Base):
     __table_args__ = (
         CheckConstraint("email LIKE '%@%.%'", name='chk_email_format'),
     )
+
+class EmailFolderTypeinDB(Base):
+    __tablename__ = 'email_folders'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    folder_type = Column(Enum('HOOKSHIELD_SPAM','INBOX', name='email_folder_type_enum'), nullable=False)
     
     
 class MailsInDb(Base):

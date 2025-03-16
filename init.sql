@@ -28,6 +28,7 @@ CREATE TABLE email_account_types (
     id INT AUTO_INCREMENT PRIMARY KEY,
     type_name ENUM('imap', 'Google') NOT NULL
 );
+INSERT INTO email_account_types (type_name) VALUES ('imap'), ('Google');
 
 -- Email accounts table
 CREATE TABLE email_accounts (
@@ -48,8 +49,9 @@ CREATE TABLE email_accounts (
 -- Email folders table
 CREATE TABLE email_folders (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    name ENUM('hookshield_spam') NOT NULL
+    name ENUM('HOOKSHIELD_SPAM','INBOX') NOT NULL
 );
+INSERT INTO email_folders (name) VALUES ('HOOKSHIELD_SPAM'), ('INBOX');
 
 -- Email analyses table
 CREATE TABLE email_analyses (
@@ -64,6 +66,8 @@ CREATE TABLE email_analyses (
     blocked_date TIMESTAMP NULL,
     explanation TEXT NOT NULL,
     folder_id INT NOT NULL,
+    source_email VARCHAR(255) NOT NULL,
+    FOREIGN KEY (source_email) REFERENCES email_accounts(email) ON DELETE CASCADE,
     FOREIGN KEY (recipient) REFERENCES email_accounts(email) ON DELETE CASCADE,
     FOREIGN KEY (folder_id) REFERENCES email_folders(id) ON DELETE CASCADE
 );
