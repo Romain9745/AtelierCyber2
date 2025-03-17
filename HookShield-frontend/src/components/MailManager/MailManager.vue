@@ -11,7 +11,7 @@
       </div>
       </div>
       <ConfirmationModal v-if="isConfirming" question="Êtes-vous sûr de vouloir supprimer cette adresse email ?" @close="isConfirming = false" @delete="SupressEmailAdress" />
-      <MailConnexionModal v-if="isAdding" @close="Added" />
+      <MailConnexionModal v-if="isAdding"  @close="isAdding=false" />
   </template>
 
     <script>
