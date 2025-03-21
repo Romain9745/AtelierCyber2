@@ -4,12 +4,59 @@ import transformers
 import uvicorn
 import shap
 import numpy as np
+import re
+import json
+import google.generativeai as genai
+from pydantic import BaseModel
+from config import google_api_key
+
+class PredictionResponse(BaseModel):
+    class_: str
+    explanation: str
+
+def model_to_json(model_instance):
+    """
+    Converts a Pydantic model instance to a JSON string.
+    Args:
+        model_instance (YourModel): An instance of your Pydantic model.
+    Returns:
+        str: A JSON string representation of the model.
+    """
+    return model_instance.model_dump_json()
+
+def extract_json_from_string(text_with_markers: str) -> PredictionResponse:
+    """
+    Extracts JSON from a string that may contain ```json markers.
+    """
+    # 1. Remove ```json blocks and surrounding whitespace:
+
+    json_string = re.sub(r"^\s*```json\s*", "", text_with_markers)  # Remove at beginning
+    json_string = re.sub(r"\s*```\s*$", "", json_string)  # Remove at the end
+    json_string = json_string.strip()  # Remove leading/trailing whitespace
+
+    # 2. Basic validation: ensure curly braces are present
+
+    if not (json_string.startswith("{") and json_string.endswith("}")):
+        print(f"Error: String does not appear to be JSON. String: {json_string}")  # Log issue
+        return PredictionResponse(class_="error", explanation="Could not find JSON")
+
+    # 3. Attempt to load the JSON:
+    try:
+        data = json.loads(json_string)
+        return PredictionResponse(**data)  # Create object and return
+    except json.JSONDecodeError as e:
+        print(f"JSONDecodeError: {e}.  String: {json_string}")
+        return PredictionResponse(
+            class_="error",
+            explanation=f"Failed to decode JSON. Error: {e}",
+        )  # Error response
+
 
 app = FastAPI()
 
 API_KEY = "your-secure-api-key"
 API_KEY_NAME = "X-API-KEY"
-api_key_header = APIKeyHeader(name=API_KEY_NAME, auto_error=True)
+api_key_header = APIKeyHeader(name=google_api_key, auto_error=True)
 
 def verify_api_key(api_key: str = Security(api_key_header)):
     if api_key != API_KEY:
@@ -20,25 +67,65 @@ def verify_api_key(api_key: str = Security(api_key_header)):
 def protected_route(api_key: str = Depends(verify_api_key)):
     return {"message": "You have access!"}
 
+genai.configure(api_key=GOOGLE_API_KEY)
 tokenizer = transformers.AutoTokenizer.from_pretrained("ealvaradob/bert-finetuned-phishing", use_fast=True)
-model = transformers.AutoModelForSequenceClassification.from_pretrained("ealvaradob/bert-finetuned-phishing")
+modele = transformers.AutoModelForSequenceClassification.from_pretrained("ealvaradob/bert-finetuned-phishing")
+model = genai.GenerativeModel('gemini-2.0-flash')
 
-pred = transformers.pipeline(
+classifier = transformers.pipeline(
     "text-classification",
-    model=model,
     tokenizer=tokenizer,
-    device=0,
+    model=modele,
     top_k=1,
 )
 
-explainer = shap.Explainer(pred)
+pmodel = shap.models.TransformersPipeline(classifier, rescale_to_logits=True)
 
 
+explainer2 = shap.Explainer(pmodel, classifier.tokenizer)
+explainer = shap.Explainer(classifier)
 
+@app.post("/predictwithgemini", response_model=PredictionResponse)
+async def predict(text: str) -> PredictionResponse:
+    json_model = model_to_json(PredictionResponse(class_="phishing", explanation="This is a phishing attempt."))
+    prompt = f"""
+    Tu es un expert en sécurité informatique spécialisé dans la détection de phishing. Ton rôle est d'analyser des emails et de déterminer s'il s'agit de tentatives de phishing ou non.
+
+    Pour chaque email analysé, tu dois fournir une réponse sous la forme : {json_model}
+
+    La réponse doit contenir les deux clés suivantes :
+
+    *   `"class"` : Une chaîne de caractères qui peut prendre deux valeurs : `"phishing"` ou `"no_phishing"`.
+    *   `"explanation"` : Une chaîne de caractères expliquant clairement et de manière concise, pour un utilisateur non technique, pourquoi l'email a été classifié de cette manière. Cette explication doit mettre en évidence les indices spécifiques présents dans l'email qui ont mené à cette classification (erreurs d'orthographe, demandes urgentes, liens suspects, etc.). Si class est `"phishing"`, ajoute une recommandation simple à l'utilisateur (ex: "Ne cliquez sur aucun lien").
+
+    **Voici l'email à analyser :**
+
+    {text}
+
+    
+    """
+    response = model.generate_content(prompt)
+    
+    response_text = response.text  # Extract the generated text (JSON string)
+    if not response_text:
+        print("Gemini returned an empty response.")
+        return PredictionResponse(class_="error", explanation="Gemini returned an empty response.")
+
+    try:
+        data = extract_json_from_string(response_text)  # Parse the JSON string into a dictionary
+        return data  # Return the PredictionResponse Object
+
+    except json.JSONDecodeError as e:
+        print(f"Error decoding JSON: {e}, Response Text: {response_text}")  # Log the problematic response
+        return PredictionResponse(class_="error", explanation=f"Failed to parse Gemini's JSON response: {e}, Raw response text: '{response_text}'")
+    except Exception as e:
+        print(f"An unexpected error occurred: {e}")
+        return PredictionResponse(class_="error", explanation="An unexpected error occurred while processing the response.")
+    
 @app.post("/predict")
 async def predict(text: str):
     # Prédiction du modèle
-    result = pred(text)
+    result = classifier(text)
     print(result)
     label = result[0][0]['label']
     score = result[0][0]['score']
@@ -46,7 +133,12 @@ async def predict(text: str):
         # Générer l'explication SHAP
         print("Générer l'explication SHAP...")
         print("Texte:", text)
-        shap_values = explainer([text], fixed_context=1, batch_size=2)  # SHAP peut gérer un seul texte directement
+
+        # Générer l'explication SHAP
+        shap_values = explainer2([text])
+        #shap_values = explainer(tokenizer(text, return_tensors="pt")["input_ids"])
+        #input_ids = tokenizer(text, return_tensors="pt")["input_ids"]
+        #shap_values = explainer(input_ids)
         print("SHAP values:", shap_values)
 
 
