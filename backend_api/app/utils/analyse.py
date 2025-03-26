@@ -1,6 +1,7 @@
 from datetime import datetime
 from pydantic import BaseModel
 import httpx
+from typing import Tuple, List
 from db.models import WhitelistInDb, BlacklistInDb,EmailAccountinDB
 from typing import Optional
 from fastapi import Depends, HTTPException
@@ -15,6 +16,7 @@ class Email(BaseModel):
     subject: str
     body: str
     timestamp: datetime
+    attachments: List[Tuple[str, bytes]] = []
 
 class EmailAnalysis(BaseModel):
     phishing_detected: bool

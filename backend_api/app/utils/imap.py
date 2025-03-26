@@ -6,7 +6,7 @@ from email.utils import parsedate_tz, mktime_tz
 from email import policy
 from bs4 import BeautifulSoup
 from datetime import datetime
-from db.models import MailsInDb, EmailAccountinDB, UserStatsinDB, GlobalStatsinDB
+from db.models import MailsInDb, EmailAccountinDB, UserStatsinDB, GlobalStatsinDB, AttachmentInDb
 import email
 import asyncio
 from email.utils import parseaddr
@@ -118,7 +118,8 @@ async def check_mail(email: Email, mail: str, client: IMAPClient, db: Session):
             if global_stats:
                 global_stats.total_mail_authentic += 1
 
-        db.add(MailsInDb(
+        # Ajouter l'email dans la base de données
+        new_email = MailsInDb(
             source=email.from_email,
             recipient=email.to_email,
             subject=email.subject,
@@ -127,10 +128,19 @@ async def check_mail(email: Email, mail: str, client: IMAPClient, db: Session):
             receive_date=email.timestamp,
             analyzed_date=datetime.now(),
             is_phishing=email_analys.phishing_detected,
-            blocked_date=datetime.now(),
+            blocked_date=datetime.now() if email_analys.phishing_detected else None,
             folder_id=1,
             source_email=mail
-        ))
+        )
+        db.add(new_email)
+        db.commit()
+
+        # Ajouter les pièces jointes si elles existent
+        for filename, data in email.attachments:
+            attachment = AttachmentInDb(email_id=new_email.id, filename=filename, data=data)
+            db.add(attachment)
+        
+        db.commit()
 
         # Mise à jour du nombre total de mails analysés
         global_stats = db.query(GlobalStatsinDB).first()
@@ -142,7 +152,6 @@ async def check_mail(email: Email, mail: str, client: IMAPClient, db: Session):
         })
 
         db.commit()
-
     except Exception as e:
         print(f"Error analysing email: {e}")
 
@@ -150,7 +159,7 @@ async def check_mail(email: Email, mail: str, client: IMAPClient, db: Session):
 
 
 def fetch_latest_email(client):
-    """Fetches the latest unread email"""
+    """Fetches the latest unread email with attachments"""
     try:
         messages = client.search("UNSEEN")  # Fetch unread emails
         if not messages:
@@ -167,25 +176,32 @@ def fetch_latest_email(client):
         subject = msg["subject"]
         date_str = msg["date"]
 
-        sender_email = parseaddr(sender)[1]  # Extract only the email address
+        sender_email = parseaddr(sender)[1]
         recipient_email = parseaddr(recipient)[1]
 
         # Convert email date to timestamp
         timestamp = None
         if date_str:
-            parsed_date = parsedate_tz(date_str)  # Parse the date
+            parsed_date = parsedate_tz(date_str)
             if parsed_date:
-                timestamp = mktime_tz(parsed_date)  # Convert to timestamp (seconds)
+                timestamp = mktime_tz(parsed_date)
 
         body = ""
+        attachments = []
 
-        # Extract email content
+        # Extract email content and attachments
         if msg.is_multipart():
             for part in msg.walk():
                 content_type = part.get_content_type()
-                if content_type == "text/plain":
+                content_disposition = part.get("Content-Disposition", "")
+
+                if content_disposition.startswith("attachment"):
+                    filename = part.get_filename()
+                    if filename:
+                        attachment_data = part.get_payload(decode=True)
+                        attachments.append((filename, attachment_data))
+                elif content_type == "text/plain":
                     body = part.get_payload(decode=True).decode(part.get_content_charset(), errors="ignore")
-                    break
                 elif content_type == "text/html" and not body:
                     body = part.get_payload(decode=True).decode(part.get_content_charset(), errors="ignore")
         else:
@@ -194,7 +210,15 @@ def fetch_latest_email(client):
         # Convert HTML to text if necessary
         text_body = BeautifulSoup(body, "html.parser").get_text()
 
-        return Email(email_id=latest_email_id,from_email=sender_email, to_email=recipient_email, subject=subject, body=text_body, timestamp=datetime.fromtimestamp(timestamp))
+        return Email(
+            email_id=latest_email_id,
+            from_email=sender_email,
+            to_email=recipient_email,
+            subject=subject,
+            body=text_body,
+            timestamp=datetime.fromtimestamp(timestamp) if timestamp else None,
+            attachments=attachments,
+        )
     except Exception as e: 
         print(f"Error fetching email: {e}")
 

@@ -1,4 +1,4 @@
-from sqlalchemy import CheckConstraint, Column, DateTime, Integer, String, TIMESTAMP, ForeignKey, func
+from sqlalchemy import CheckConstraint, Column, DateTime, Integer, String, TIMESTAMP, ForeignKey, func, LargeBinary
 from sqlalchemy.orm import relationship
 from db.db import Base
 from sqlalchemy import Column, Integer, String, DateTime, Text, Boolean, ForeignKey, func, CheckConstraint, UniqueConstraint, BigInteger, Enum
@@ -102,11 +102,12 @@ class MailsInDb(Base):
     folder_id = Column(Integer, ForeignKey('email_folders.id', ondelete='CASCADE'), nullable=False)
 
     source_email = Column(String, ForeignKey('email_accounts.email', ondelete='CASCADE'))
+    attachments = relationship('AttachmentInDb', back_populates='email', cascade='all, delete-orphan')
+
     __table_args__ = (
         CheckConstraint("recipient LIKE '%@%.%'", name='chk_recipient_email_format'),
         CheckConstraint("source LIKE '%@%.%'", name='chk_source_email_format'),
     )
-
 
 class GlobalStatsinDB(Base):
     __tablename__ = "global_stats"
@@ -151,3 +152,13 @@ class FileSignatureinDB(Base):
     detected_malware = Column(Boolean, default=False)
     detected_at = Column(DateTime, default=func.current_timestamp())
     folder_id = Column(Integer, ForeignKey('email_folders.id', ondelete='CASCADE'), nullable=False)
+    
+class AttachmentInDb(Base):
+    __tablename__ = 'attachments'
+
+    id = Column(Integer, primary_key=True)
+    email_id = Column(Integer, ForeignKey('email_analyses.id', ondelete='CASCADE'), nullable=False)
+    filename = Column(String(255), nullable=False)
+    data = Column(LargeBinary, nullable=False)
+
+    email = relationship('MailsInDb', back_populates='attachments')
