@@ -1,0 +1,50 @@
+
+
+services:
+  mariadb:
+    image: mariadb:latest
+    container_name: hookshield_db
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: "admin123"
+      MYSQL_DATABASE: Hookshield
+      MYSQL_USER: "hookadmin"
+      MYSQL_PASSWORD: "admin123"
+    ports:
+      - "3306:3306"  # Redirection du port 3306 de la machine hôte vers le port 3306 du conteneur
+    volumes:
+      - mariadb_data:/var/lib/mysql
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+        test: [ "CMD", "healthcheck.sh", "--su-mysql", "--connect", "--innodb_initialized" ]
+        start_period: 1m
+        start_interval: 10s
+        interval: 1m
+        timeout: 5s
+        retries: 3
+
+  api:
+    build: 
+      context: backend_api/app
+      dockerfile: Dockerfile
+    environment:
+      DATABASE_URL: "mysql+pymysql://hookadmin:admin123@mariadb:3306/Hookshield"
+    ports:
+      - "8000:8000"
+    depends_on:
+      mariadb:
+        condition: service_healthy  # Wait for DB to be healthy
+
+  frontend:
+    build:
+      context: Hookshield-frontend
+      dockerfile: Dockerfile
+    ports:
+      - "4173:4173"
+    depends_on:
+      api:
+        condition: service_started
+
+volumes:
+  mariadb_data:
+    driver: local
