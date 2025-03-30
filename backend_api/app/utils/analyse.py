@@ -52,7 +52,6 @@ async def analyse_email(email: Email,account: str,db: Session) -> EmailAnalysis:
             analysis_id = await upload_file(file_path)
             if analysis_id:
                 report = await get_report(analysis_id)
-                for result in report.values():
                 if any(result.get('category') == 'malicious' for result in report.values()):
                     phishing_detected = True
                     explanation = f"Malicious attachment detected: {attachment['filename']}"
@@ -64,7 +63,8 @@ async def analyse_email(email: Email,account: str,db: Session) -> EmailAnalysis:
             "email": {**email.dict(), "timestamp": email.timestamp.isoformat()}
             })
             phishing_detected = response.json().get("phishing_detected")
-            explanation = response.json().get("explanation")        return EmailAnalysis(phishing_detected=phishing_detected, explanation=explanation, user_account_id=user_account_id)
+            explanation = response.json().get("explanation")        
+        return EmailAnalysis(phishing_detected=phishing_detected, explanation=explanation, user_account_id=user_account_id)
 
 
     except Exception as e:

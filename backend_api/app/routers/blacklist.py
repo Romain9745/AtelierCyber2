@@ -43,7 +43,6 @@ def get_main_blacklist(email: str = Query(..., min_length=5), db: Session = Depe
         results = db.query(BlacklistInDb.email, BlacklistInDb.reason, BlacklistInDb.user_email).filter(and_(BlacklistInDb.user_email== email, BlacklistInDb.main_blacklist == False)).all()
         if results:
             for result in results:
-                print("user mail = "+result.user_email) 
             return [ListInfoToSend(email=result.email, reason=result.reason) for result in results]
         else:
             return {"message": "No blacklist entries found for this user."}    
@@ -74,7 +73,6 @@ def add_to_main_blacklist(entry: ListInfo, db: Session = Depends(get_db)):
     
 @router.post('/user_blacklist')
 def add_to_user_blacklist(entry: ListInfo, db: Session = Depends(get_db)):
-    print(entry)
     try:
         new_entry = BlacklistInDb(email=entry.email, reason=entry.reason, main_blacklist=False, user_email=entry.user_email)
         db.add(new_entry)

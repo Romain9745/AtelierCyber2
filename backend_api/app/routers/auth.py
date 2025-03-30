@@ -112,16 +112,11 @@ def first_admin_account(user: User,db: Session = Depends(get_db)):
         return {"message": "First admin account created", "user_id": new_user.id}
     
 def create_first_admin_account(db: Session):
-    print("create admin")
     print(db.query(UserInDB).count())
     is_User_Table_Empty = db.query(UserInDB).count() == 0
-    print("is user table empty ?")
-    print(is_User_Table_Empty)
     if is_User_Table_Empty:
         user = fake_User
-        print(user)
         user.role = Role.admin
-        print(user)
         new_user = register(user, db)
         new_stats = UserStatsinDB(user_id=new_user.id)
         try:
@@ -137,7 +132,6 @@ class CheckRole:
         self.role = role
 
     def __call__(self, user: UserInfo = Depends(get_current_user)):
-        print(user.role)
         if user.role.name != self.role.name:
             raise HTTPException(status_code=403, detail="Forbidden")
         return True

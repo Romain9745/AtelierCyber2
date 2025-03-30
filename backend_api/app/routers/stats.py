@@ -77,7 +77,6 @@ def fetch_stats(db) -> StatsResponse:
     global_stats = db.query(GlobalStatsinDB).first()
     if not global_stats:
         raise ValueError("Global stats not found")
-    print(global_stats)
 
     # Email stats: Using SQLAlchemy functions to count and sum
     email_stats = db.query(

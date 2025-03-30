@@ -19,10 +19,7 @@ class MailBodyInfo(BaseModel):
 @router.get('/blocked_emails')
 def get_emails(db: Session = Depends(get_db)):
     try:
-        print("get_emails appelé")
         results = db.query(MailsInDb.source, MailsInDb.recipient, MailsInDb.subject, MailsInDb.explanation).all()
-        print("les resultats sont ")
-        print(results)
         if results:
             return [MailInfo(source=result.source, recipient=result.recipient, subject=result.subject, explanation=result.explanation) for result in results]
         else:
@@ -33,10 +30,7 @@ def get_emails(db: Session = Depends(get_db)):
 @router.get('/email_body')
 def get_emails(source=str, recipient=str, subject=str, explanation=str, db: Session = Depends(get_db)):
     try:
-        print("get_emails appelé")
         result = db.query(MailsInDb.email_body).filter(MailsInDb.source == source,MailsInDb.recipient == recipient,MailsInDb.subject == subject,MailsInDb.explanation == explanation).first()      
-        print("les resultats sont ")
-        print(result)
         if result:
             return MailBodyInfo(email_body=result.email_body)
         else:
