@@ -49,32 +49,22 @@ async def analyse_email(email: Email,account: str,db: Session) -> EmailAnalysis:
             file_path = f"/tmp/{attachment['filename']}"
             with open(file_path, 'wb') as f:
                 f.write(attachment['data'])
-            print("avant anal")
             analysis_id = await upload_file(file_path)
-            print("apres anal")
             if analysis_id:
-                print("avant rep")
                 report = await get_report(analysis_id)
-                print("apres rep")
                 for result in report.values():
-                    print("category = ", result.get('category'))
                 if any(result.get('category') == 'malicious' for result in report.values()):
                     phishing_detected = True
                     explanation = f"Malicious attachment detected: {attachment['filename']}"
                     break
         
         # Analyse the email for phishing
-        #async with httpx.AsyncClient() as client:
-         #   print("async")
-          #  response = await client.post("https://localhost:8080/IA", json={
-           #     "email": {**email.dict(), "timestamp": email.timestamp.isoformat()}
-            #})
-        #    print("response async is ", response)
-         #   phishing_detected = response.json().get("phishing_detected")
-          #  print("fish ?", phishing_detected)
-           # explanation = response.json().get("explanation")
-            #print("explanation are ", explanation)
-        return EmailAnalysis(phishing_detected=phishing_detected, explanation=explanation, user_account_id=user_account_id)
+        async with httpx.AsyncClient() as client:
+            response = await client.post("https://localhost:8080/IA", json={
+            "email": {**email.dict(), "timestamp": email.timestamp.isoformat()}
+            })
+            phishing_detected = response.json().get("phishing_detected")
+            explanation = response.json().get("explanation")        return EmailAnalysis(phishing_detected=phishing_detected, explanation=explanation, user_account_id=user_account_id)
 
 
     except Exception as e:
