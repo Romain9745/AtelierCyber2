@@ -2,6 +2,7 @@
 node_modules
 /dist
 backend_api/venv
+IA_api/venv
 
 # local env files
 .env.local

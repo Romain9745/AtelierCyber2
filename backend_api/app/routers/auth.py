@@ -25,7 +25,7 @@ class Settings(BaseModel):
     secret_key: str = "secret"
     algorithm: str = "HS256"
     access_token_expires: int = 30
-    refresh_token_expires: int = 600
+    refresh_token_expires: int = 3000
 
 
 

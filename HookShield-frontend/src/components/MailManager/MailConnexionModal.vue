@@ -180,7 +180,12 @@
     },
     methods: {
       closeModal(email) {
-        this.$emit("close",email);
+        if(!email) {
+          this.$emit("close");
+        }
+        else {
+          this.$emit("close", email);
+        }
       },
       async connectWithGoogle() {
         console.log("Connecting with Google...");
