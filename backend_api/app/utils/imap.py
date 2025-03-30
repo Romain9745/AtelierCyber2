@@ -1,15 +1,15 @@
-
 from sqlalchemy.orm import Session
 from config import cipher
 from imapclient import IMAPClient
 from email.utils import parsedate_tz, mktime_tz
 from email import policy
 from bs4 import BeautifulSoup
+import imaplib
 from datetime import datetime
-from db.models import MailsInDb, EmailAccountinDB, UserStatsinDB, GlobalStatsinDB, AttachmentInDb
+from db.models import MailsInDb, EmailAccountinDB, UserStatsinDB, GlobalStatsinDB
 import email
 import asyncio
-from email.utils import parseaddr
+from email.utils import parseaddr, parsedate_tz, mktime_tz
 from utils.analyse import Email, analyse_email, EmailAnalysis
 
 tasks = {}
@@ -18,13 +18,13 @@ async def start_imap_listener(email: str, password: str, imap_server: str, db):
     """Garde la connexion IMAP ouverte et surveille les nouveaux emails."""
     while email in tasks:  # Vérifie si la tâche est encore active
         try:
-            with IMAPClient(imap_server) as client:
+            with imaplib.IMAP4_SSL(imap_server) as client:
                 client.login(email, password)
-                client.select_folder("INBOX")
+                client.select("INBOX", False)
 
                 while email in tasks:
-                    messages = client.search("UNSEEN")
-                    if messages:
+                    status, messages = client.search(None, 'UNSEEN')
+                    if status == 'OK' and messages[0]:
                         print(f"📩 {len(messages)} nouveaux emails pour {email}")
                         mail = fetch_latest_email(client)
                         if mail:
@@ -34,6 +34,8 @@ async def start_imap_listener(email: str, password: str, imap_server: str, db):
         except Exception as e:
             print(f"Erreur IMAP ({email}): {e}. Reconnexion dans 10s...")
             await asyncio.sleep(10)
+            
+
 
 async def start_imap_listener_after_login(email: str, password: str, imap_server: str, db):
     if email in tasks:
@@ -91,18 +93,24 @@ def stop_imap_listener(email: str):
 
 
 
-async def check_mail(email: Email, mail: str, client: IMAPClient, db: Session):
+async def check_mail(email: Email, mail: str, client: imaplib.IMAP4_SSL, db: Session):
     try:
         email_analys = await analyse_email(email, mail, db)
         spam_folder = "INBOX/HOOKSHIELD_SPAM"
 
         # Vérifier si le dossier existe, sinon le créer
-        if spam_folder not in [folder[2] for folder in client.list_folders()]:
-            client.create_folder(spam_folder)
+        client.select('INBOX')
+        result, data = client.list()
+        folders = [folder.decode().split('"')[-2].strip() for folder in data]
 
+        if spam_folder not in folders:
+            client.create(spam_folder)
         # Déplacer les e-mails dans le dossier approprié
+        email_id = str(email.email_id)
         if email_analys.phishing_detected:
-            client.move(email.email_id, spam_folder)
+            client.store(email_id, '+FLAGS', '\\Seen')
+            client.copy(email_id, spam_folder)
+            client.store(email_id, '+FLAGS', '\\Deleted')
             db.query(UserStatsinDB).filter(UserStatsinDB.user_id == email_analys.user_account_id).update({
                 UserStatsinDB.mails_blocked: UserStatsinDB.mails_blocked + 1
             })
@@ -110,7 +118,9 @@ async def check_mail(email: Email, mail: str, client: IMAPClient, db: Session):
             if global_stats:
                 global_stats.total_mails_blocked += 1
         else:
-            client.move(email.email_id, "INBOX")
+            client.store(email_id, '+FLAGS', '\\Seen')
+            client.copy(email_id, 'INBOX')
+            client.store(email_id, '+FLAGS', '\\Deleted')
             db.query(UserStatsinDB).filter(UserStatsinDB.user_id == email_analys.user_account_id).update({
                 UserStatsinDB.mail_authentic: UserStatsinDB.mail_authentic + 1
             })
@@ -118,8 +128,7 @@ async def check_mail(email: Email, mail: str, client: IMAPClient, db: Session):
             if global_stats:
                 global_stats.total_mail_authentic += 1
 
-        # Ajouter l'email dans la base de données
-        new_email = MailsInDb(
+        db.add(MailsInDb(
             source=email.from_email,
             recipient=email.to_email,
             subject=email.subject,
@@ -128,19 +137,10 @@ async def check_mail(email: Email, mail: str, client: IMAPClient, db: Session):
             receive_date=email.timestamp,
             analyzed_date=datetime.now(),
             is_phishing=email_analys.phishing_detected,
-            blocked_date=datetime.now() if email_analys.phishing_detected else None,
+            blocked_date=datetime.now(),
             folder_id=1,
             source_email=mail
-        )
-        db.add(new_email)
-        db.commit()
-
-        # Ajouter les pièces jointes si elles existent
-        for filename, data in email.attachments:
-            attachment = AttachmentInDb(email_id=new_email.id, filename=filename, data=data)
-            db.add(attachment)
-        
-        db.commit()
+        ))
 
         # Mise à jour du nombre total de mails analysés
         global_stats = db.query(GlobalStatsinDB).first()
@@ -152,6 +152,7 @@ async def check_mail(email: Email, mail: str, client: IMAPClient, db: Session):
         })
 
         db.commit()
+
     except Exception as e:
         print(f"Error analysing email: {e}")
 
@@ -159,16 +160,18 @@ async def check_mail(email: Email, mail: str, client: IMAPClient, db: Session):
 
 
 def fetch_latest_email(client):
-    """Fetches the latest unread email with attachments"""
+    """Fetches the latest unread email and extracts attachments if available"""
     try:
-        messages = client.search("UNSEEN")  # Fetch unread emails
-        if not messages:
+        status, messages = client.search(None, 'UNSEEN')
+        if status != 'OK' or not messages[0]:
             return
 
-        latest_email_id = messages[-1]
-        response = client.fetch(latest_email_id, ["RFC822"])
-        raw_email = response[latest_email_id][b"RFC822"]
+        latest_email_id = messages[-1].split()[-1]
+        status, msg_data = client.fetch(latest_email_id, '(RFC822)')
+        if status != 'OK':
+            return
 
+        raw_email = msg_data[0][1]
         msg = email.message_from_bytes(raw_email, policy=policy.default)
 
         sender = msg["from"]
@@ -176,7 +179,7 @@ def fetch_latest_email(client):
         subject = msg["subject"]
         date_str = msg["date"]
 
-        sender_email = parseaddr(sender)[1]
+        sender_email = parseaddr(sender)[1]  # Extract only the email address
         recipient_email = parseaddr(recipient)[1]
 
         # Convert email date to timestamp
@@ -193,32 +196,28 @@ def fetch_latest_email(client):
         if msg.is_multipart():
             for part in msg.walk():
                 content_type = part.get_content_type()
-                content_disposition = part.get("Content-Disposition", "")
+                content_disposition = str(part.get("Content-Disposition"))
 
-                if content_disposition.startswith("attachment"):
-                    filename = part.get_filename()
-                    if filename:
-                        attachment_data = part.get_payload(decode=True)
-                        attachments.append((filename, attachment_data))
-                elif content_type == "text/plain":
+                # Extract plain text or HTML body
+                if content_type == "text/plain" and "attachment" not in content_disposition:
                     body = part.get_payload(decode=True).decode(part.get_content_charset(), errors="ignore")
                 elif content_type == "text/html" and not body:
                     body = part.get_payload(decode=True).decode(part.get_content_charset(), errors="ignore")
+
+                # Extract attachments
+                if part.get_filename():
+                    filename = part.get_filename()
+                    file_data = part.get_payload(decode=True)
+                    attachments.append({"filename": filename, "data": file_data})
         else:
             body = msg.get_payload(decode=True).decode(msg.get_content_charset(), errors="ignore")
 
         # Convert HTML to text if necessary
         text_body = BeautifulSoup(body, "html.parser").get_text()
 
-        return Email(
-            email_id=latest_email_id,
-            from_email=sender_email,
-            to_email=recipient_email,
-            subject=subject,
-            body=text_body,
-            timestamp=datetime.fromtimestamp(timestamp) if timestamp else None,
-            attachments=attachments,
-        )
+        print(f"Found {len(attachments)} attachment(s)")
+        return Email(email_id=latest_email_id, from_email=sender_email, to_email=recipient_email, subject=subject, body=text_body, timestamp=datetime.fromtimestamp(timestamp), attachments=attachments)
+    
     except Exception as e: 
         print(f"Error fetching email: {e}")
 

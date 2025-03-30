@@ -162,12 +162,3 @@ CREATE TABLE user_stats (
     last_action TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
-
-CREATE TABLE attachments (
-    id SERIAL PRIMARY KEY,
-    email_id INTEGER NOT NULL,
-    filename VARCHAR(255) NOT NULL,
-    data LONGBLOB NOT NULL,
-    CONSTRAINT fk_email FOREIGN KEY (email_id)
-        REFERENCES email_analyses(id) ON DELETE CASCADE
-);
