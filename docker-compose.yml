@@ -45,6 +45,23 @@ services:
       api:
         condition: service_started
 
+  api_IA:
+    build: 
+      context: IA_api/app
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    depends_on:
+      api:
+        condition: service_started
+    deploy:
+      resources:
+        reservation:
+         devices:
+          - driver: nvidia
+            count: 1
+            capabilities: [gpu]
+
 volumes:
   mariadb_data:
     driver: local

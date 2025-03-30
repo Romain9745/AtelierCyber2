@@ -2,7 +2,5 @@ transformers
 torch 
 fastapi 
 uvicorn
-lime
 shap
-google-generativeai
-dotenv
+transformers-interpret
