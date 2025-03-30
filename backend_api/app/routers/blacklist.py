@@ -42,7 +42,6 @@ def get_main_blacklist(email: str = Query(..., min_length=5), db: Session = Depe
     try:
         results = db.query(BlacklistInDb.email, BlacklistInDb.reason, BlacklistInDb.user_email).filter(and_(BlacklistInDb.user_email== email, BlacklistInDb.main_blacklist == False)).all()
         if results:
-            for result in results:
             return [ListInfoToSend(email=result.email, reason=result.reason) for result in results]
         else:
             return {"message": "No blacklist entries found for this user."}    

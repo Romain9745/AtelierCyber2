@@ -111,6 +111,7 @@ async def check_mail(email: Email, mail: str, client: imaplib.IMAP4_SSL, db: Ses
             client.store(email_id, '+FLAGS', '\\Seen')
             client.copy(email_id, spam_folder)
             client.store(email_id, '+FLAGS', '\\Deleted')
+            client.expunge()
             db.query(UserStatsinDB).filter(UserStatsinDB.user_id == email_analys.user_account_id).update({
                 UserStatsinDB.mails_blocked: UserStatsinDB.mails_blocked + 1
             })

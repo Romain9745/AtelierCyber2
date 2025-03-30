@@ -3,14 +3,13 @@ import asyncio
 import os
 from dotenv import load_dotenv
 
-load_dotenv("../.env")
-
 API_KEY = os.getenv("ATTACHMENT_API_KEY")
 URL_UPLOAD = 'https://www.virustotal.com/api/v3/files'
 URL_REPORT = 'https://www.virustotal.com/api/v3/analyses/'
 
 async def upload_file(file_path):
     
+    load_dotenv("../.env")
     print(API_KEY)
     
     headers = {

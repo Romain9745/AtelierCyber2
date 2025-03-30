@@ -218,6 +218,7 @@ async def fetch_gmail(user: Annotated[UserInfo, Depends(get_current_user)], db: 
     raise HTTPException(status_code=500, detail="Failed to retrieve emails")
 
 def gmail_serialization():
+    print("a")
 
 # TODO : Test webhooks once we've set up a public address
 # TODO : Modify function to be user-specific and add separation by recipient
