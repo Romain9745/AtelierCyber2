@@ -2,5 +2,6 @@ transformers
 torch 
 fastapi 
 uvicorn
-shap
 transformers-interpret
+accelerate
+bitsandbytes

@@ -2,14 +2,13 @@ from fastapi import FastAPI, Depends, HTTPException, Security
 from fastapi.security.api_key import APIKeyHeader
 import transformers
 import uvicorn
-import shap
-import numpy as np
 import torch
-import json
+import re
 from pydantic import BaseModel
 from transformers_interpret import SequenceClassificationExplainer
 
 app = FastAPI()
+
 
     
 model = transformers.AutoModelForSequenceClassification.from_pretrained("ealvaradob/bert-finetuned-phishing")
@@ -27,25 +26,15 @@ classifier = transformers.pipeline(
     "text-classification",
     model=model,
     tokenizer=tokenizer,
-    device=0 if torch.cuda.is_available() else -1,  # Use GPU if available
-  #if torch.cuda.is_available() else -1,  # Use GPU if available
+    device=0 if torch.cuda.is_available() else -1,
     top_k=1,
-    batch_size=1  # Reduce prediction overhead
+    batch_size=1
 )
 
-    # Initialize SHAP explainer
-pmodel = shap.models.TransformersPipeline(classifier)
-explainer2 = shap.Explainer(pmodel, classifier.tokenizer)
-
-
-# Initialize the FastAPI app
-
-
-
-class PredictionResponse(BaseModel):
-    class_: str
-    explanation: str
-
+Phi_tokenizer = transformers.AutoTokenizer.from_pretrained("unsloth/Phi-4-mini-instruct-unsloth-bnb-4bit")
+Phi_model = transformers.AutoModelForCausalLM.from_pretrained("unsloth/Phi-4-mini-instruct-unsloth-bnb-4bit", device_map="auto")
+Phi_model.to(device)
+Phi_model.eval()
 
 API_KEY = "your-secure-api-key"
 API_KEY_NAME = "X-API-KEY"
@@ -55,29 +44,21 @@ def verify_api_key(api_key: str = Security(api_key_header)):
     if api_key != API_KEY:
         raise HTTPException(status_code=403, detail="Unauthorized")
     return api_key
-
-@app.get("/protected-route")
-def protected_route(api_key: str = Depends(verify_api_key)):
-    return {"message": "You have access!"}
-
     
 @app.post("/predict")
-async def predict(text: str):
+async def predict(text: str, api_key: str = Depends(verify_api_key)):
     try:
         # Prédiction du modèle
         result = classifier(text)
-        print(result)
         label = result[0][0]['label']
         score = result[0][0]['score']
-        explainer = cls_explainer(text, internal_batch_size=1, n_steps=30)
-        print(explainer)
-
-        
+        explanation = generate_explanation(text, label, score)
 
 
-        explanation = {
+        return {
             "label": label,
             "score": score,
+            "explanation": explanation
         }
     except Exception as e:
         explanation = {
@@ -86,60 +67,32 @@ async def predict(text: str):
             "explanation": str(e)
         }
     return explanation
+    
+def generate_explanation(text: str,label: str, score: str) -> str:
+    """Convert token importance into a human-readable sentence."""
+    token_explanation = cls_explainer(text, internal_batch_size=1, n_steps=30)
+    sorted_explanation = sorted(token_explanation, key=lambda x: x[1], reverse=True)[:5]
+    print(token_explanation)
+    
+    prompt = f"""
+    The AI classified this email as "{label}" with {score} confidence.
+
+    **Why was this classified as "{label}"?**  
+    Using the most important words: {sorted_explanation} and the text: {text}, write a **concise, user-friendly explanation in 1 sentence**.
+    """
+    
+    inputs = Phi_tokenizer(prompt, return_tensors="pt").to(device)
+    outputs = Phi_model.generate(**inputs, max_new_tokens=100)
+
+    generated_text = Phi_tokenizer.decode(outputs[0][inputs["input_ids"].shape[1]:], skip_special_tokens=True)
+    cleaned_text = re.search(r'([A-Za-z].*?\.)', generated_text)
+    if cleaned_text:
+        result = cleaned_text.group(1).strip().replace("\"", "")
+    else:
+        result = text
+
+    return result
 
 
-
-@app.post("/predict-shap")
-async def predict_with_shap(text: str):
-    try:
-        # Prédiction rapide
-        result = classifier(text)[0][0]
-        label, score = result["label"], result["score"]
-
-        # Génération de l'explication SHAP accélérée (réduction des samples)
-        shap_values = explainer2([text])
-
-        # Extraction des mots influents
-        predicted_class_idx = 0 if label == "phishing" else 1
-        feature_importance = [
-            (i, abs(val_row[predicted_class_idx]), val_row[predicted_class_idx])
-            for i, val_row in enumerate(shap_values.values[0, :])
-            if val_row[predicted_class_idx] != 0
-        ]
-        feature_importance.sort(key=lambda x: x[1], reverse=True)
-
-        # Récupérer les 5 mots les plus influents
-        top_n = 5
-        explanation_details = {
-            "key_words": [
-                {
-                    "word": shap_values.data[0][idx],
-                    "influence": "favorable" if original_value > 0 else "défavorable",
-                    "importance": round(float(importance), 3)
-                }
-                for idx, importance, original_value in feature_importance[:top_n]
-            ]
-        }
-
-        # Génération d'une explication en langage naturel
-        positive_words = [f"« {f['word']} »" for f in explanation_details["key_words"] if f["influence"] == "favorable"]
-        negative_words = [f"« {f['word']} »" for f in explanation_details["key_words"] if f["influence"] == "défavorable"]
-
-        explanation_text = f"Votre texte a été classé comme « {label} » avec un niveau de confiance de {int(score * 100)}%."
-
-        if positive_words:
-            explanation_text += f" Les mots {', '.join(positive_words)} ont influencé cette décision."
-
-        if negative_words:
-            explanation_text += f" En revanche, les mots {', '.join(negative_words)} ont joué contre cette classification."
-
-        explanation_details["simple_explanation"] = explanation_text
-
-        return {"label": label, "score": round(score, 3), "explanation": explanation_details}
-
-    except Exception as e:
-        return {"error": str(e)}
-
-# 📌 Lancement du serveur optimisé
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=7860)
