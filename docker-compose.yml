@@ -25,7 +25,7 @@ services:
 
   api:
     build: 
-      context: backend_api/app
+      context: backend_api
       dockerfile: Dockerfile
     environment:
       DATABASE_URL: "mysql+pymysql://hookadmin:admin123@mariadb:3306/Hookshield"

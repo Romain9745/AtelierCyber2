@@ -46,13 +46,13 @@ def verify_api_key(api_key: str = Security(api_key_header)):
     return api_key
     
 @app.post("/predict")
-async def predict(text: str, api_key: str = Depends(verify_api_key)):
+async def predict(email_content: str, api_key: str = Depends(verify_api_key)):
     try:
         # Prédiction du modèle
-        result = classifier(text)
+        result = classifier(email_content)
         label = result[0][0]['label']
         score = result[0][0]['score']
-        explanation = generate_explanation(text, label, score)
+        explanation = generate_explanation(email_content, label, score)
 
 
         return {
@@ -95,4 +95,4 @@ def generate_explanation(text: str,label: str, score: str) -> str:
 
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=7860)
+    uvicorn.run(app, host="0.0.0.0", port=7080)
