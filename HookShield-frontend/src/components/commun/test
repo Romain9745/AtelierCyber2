@@ -1,0 +1,282 @@
+<template>
+  <div
+    v-if="selectedEmail"
+    class="email-modal"
+  >
+    <!-- En-tête avec bouton de fermeture -->
+    <div class="modal-header">
+      <h2 class="modal-title">
+        <i class="fas fa-envelope"></i>
+        Détails du Mail
+      </h2>
+      <button
+        @click="closeModal"
+        class="close-btn"
+        title="Fermer"
+      >
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+
+    <!-- Contenu détaillé du mail -->
+    <div class="email-content">
+      <div class="email-field">
+        <span class="field-label">De :</span>
+        <span class="field-value">{{ selectedEmail.sender }}</span>
+      </div>
+      
+      <div class="email-field">
+        <span class="field-label">À :</span>
+        <span class="field-value">{{ selectedEmail.recipient }}</span>
+      </div>
+      
+      <div class="email-field">
+        <span class="field-label">Objet :</span>
+        <span class="field-value">{{ selectedEmail.subject }}</span>
+      </div>
+      
+      <div class="email-body-container">
+        <div class="email-field">
+          <span class="field-label">Contenu :</span>
+        </div>
+        <div class="email-body">
+          {{ email_body }}
+        </div>
+      </div>
+    </div>
+
+    <div class="button-group">
+      <button 
+        v-if="selectedEmail.blockReason !== 'No phishing detected'"
+        @click="closeModal"
+        class="btn btn-primary"
+      >
+        <i class="fas fa-shield-alt"></i>
+        Déclarer comme non phishing
+      </button>
+      
+      <button
+        @click="closeModal"
+        class="btn btn-danger"
+      >
+        <i class="fas fa-times"></i>
+        Fermer
+      </button>
+    </div>
+  </div>
+</template>
+
+<script>
+export default {
+  props: {
+    selectedEmail: Object,
+    email_body: String
+  },
+  methods: {
+    closeModal() {
+      this.$emit('close');
+    }
+  }
+}
+</script>
+
+<style scoped>
+.email-modal {
+  background-color: white;
+  border-radius: 16px;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  padding: 24px;
+  width: 100%;
+  max-width: 480px;
+  transform: translateY(0);
+  transition: all 0.3s ease;
+  border: 1px solid #e5e7eb;
+}
+
+.email-modal:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+  padding-bottom: 16px;
+  border-bottom: 2px solid #f3f4f6;
+}
+
+.modal-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #1f2937;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.close-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 1.5rem;
+  color: #6b7280;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.close-btn:hover {
+  background-color: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+}
+
+.email-content {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.email-field {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.field-label {
+  font-weight: 600;
+  color: #1f2937;
+  min-width: 70px;
+}
+
+.field-value {
+  color: #4b5563;
+  word-break: break-word;
+  flex: 1;
+}
+
+.email-body-container {
+  margin-top: 16px;
+  border-top: 1px solid #e5e7eb;
+  padding-top: 16px;
+}
+
+.email-body {
+  background-color: #f3f4f6;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 16px;
+  max-height: 200px;
+  overflow-y: auto;
+  font-size: 0.95rem;
+  line-height: 1.6;
+  margin-top: 8px;
+}
+
+.button-group {
+  margin-top: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.btn {
+  font-weight: 600;
+  padding: 12px;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.btn-primary {
+  background-color: #4f46e5;
+  color: white;
+}
+
+.btn-primary:hover {
+  background-color: #4338ca;
+}
+
+.btn-danger {
+  background-color: #ef4444;
+  color: white;
+}
+
+.btn-danger:hover {
+  background-color: #dc2626;
+}
+
+/* Custom scrollbar */
+.email-body::-webkit-scrollbar {
+  width: 6px;
+}
+
+.email-body::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 10px;
+}
+
+.email-body::-webkit-scrollbar-thumb {
+  background: #cbd5e0;
+  border-radius: 10px;
+}
+
+.email-body::-webkit-scrollbar-thumb:hover {
+  background: #a0aec0;
+}
+
+/* Support du mode sombre */
+:deep(.dark) .email-modal {
+  background-color: #1e293b;
+  border-color: #4b5563;
+}
+
+:deep(.dark) .modal-header {
+  border-bottom-color: #4b5563;
+}
+
+:deep(.dark) .modal-title {
+  color: #f9fafb;
+}
+
+:deep(.dark) .field-label {
+  color: #e5e7eb;
+}
+
+:deep(.dark) .field-value {
+  color: #d1d5db;
+}
+
+:deep(.dark) .email-body-container {
+  border-top-color: #4b5563;
+}
+
+:deep(.dark) .email-body {
+  background-color: #374151;
+  border-color: #4b5563;
+  color: #e5e7eb;
+}
+
+:deep(.dark) .email-body::-webkit-scrollbar-track {
+  background: #2d3748;
+}
+
+:deep(.dark) .email-body::-webkit-scrollbar-thumb {
+  background: #4a5568;
+}
+
+:deep(.dark) .email-body::-webkit-scrollbar-thumb:hover {
+  background: #718096;
+}
+</style>

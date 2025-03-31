@@ -39,56 +39,6 @@
               custom IMAP credentials.
             </p>
             <ul class="my-4 space-y-3">
-              <!-- Google Email Option -->
-              <li>
-                <a
-                  href="#"
-                  class="flex items-center p-3 text-base font-bold text-gray-900 rounded-lg bg-gray-50 hover:bg-gray-100 group hover:shadow dark:bg-gray-600 dark:hover:bg-gray-500 dark:text-white"
-                  @click.prevent="connectWithGoogle"
-                >
-                  <svg
-                    aria-hidden="true"
-                    class="w-6 h-6 me-2"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                    xmlns="http://www.w3.org/2000/svg"
-                  >
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      d="M4 6h16M4 12h16m-7 6h7"
-                    ></path>
-                  </svg>
-                  <span class="flex-1 ms-3 whitespace-nowrap">Google</span>
-                </a>
-              </li>
-              <!-- Outlook Email Option -->
-              <li>
-                <a
-                  href="#"
-                  class="flex items-center p-3 text-base font-bold text-gray-900 rounded-lg bg-gray-50 hover:bg-gray-100 group hover:shadow dark:bg-gray-600 dark:hover:bg-gray-500 dark:text-white"
-                  @click.prevent="connectWithOutlook"
-                >
-                  <svg
-                    aria-hidden="true"
-                    class="w-6 h-6 me-2"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                    xmlns="http://www.w3.org/2000/svg"
-                  >
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      d="M5 3v18l15-9z"
-                    ></path>
-                  </svg>
-                  <span class="flex-1 ms-3 whitespace-nowrap">Outlook</span>
-                </a>
-              </li>
               <!-- IMAP Email Option -->
               <li>
                 <a

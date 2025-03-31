@@ -1,82 +1,98 @@
 <template>
-  <table class="w-full text-sm text-left rtl:text-right text-gray-500 dark:text-gray-400 mt-4">
-    <thead class="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
-      <tr>
-        <th
-  v-for="(header, index) in headers"
-  :key="index"
-  class="px-6 py-3 cursor-pointer relative"
-  @click="sortData(index)"
-  :class="{
-    'text-blue-600': sortIndex === index,
-    'bg-gray-200': sortIndex === index,
-    'dark:bg-gray-800': sortIndex === index,
-  }"
->
-  <div class="flex items-center space-x-2">
-    <span>{{ header }}</span>
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      fill="none"
-      viewBox="0 0 24 24"
-      stroke="currentColor"
-      class="w-3 h-3 inline-block"
-      :class="{
-        'font-bold': sortIndex === index && sortOrder === 'desc',
-        'scale-120': sortIndex === index && sortOrder === 'desc'
-      }"
-    >
-      <path
-        stroke-linecap="round"
-        stroke-linejoin="round"
-        stroke-width="2"
-        d="M19 9l-7 7-7-7"
-      />
-    </svg>
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      fill="none"
-      viewBox="0 0 24 24"
-      stroke="currentColor"
-      class="w-3 h-3 inline-block"
-      :class="{
-        'font-bold': sortIndex === index && sortOrder === 'asc',
-        'scale-120': sortIndex === index && sortOrder === 'asc'
-      }"
-    >
-      <path
-        stroke-linecap="round"
-        stroke-linejoin="round"
-        stroke-width="2"
-        d="M5 15l7-7 7 7"
-      />
-    </svg>
-  </div>
-</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr v-if="data.length === 0">
-        <td class="border border-gray-300 dark:border-gray-700 p-2 text-center" :colspan="headers.length">
-          Aucune donnée
-        </td>
-      </tr>
-      <tr v-if ="data.length > 0"
-        v-for="(row, rowIndex) in sorted"
-        :key="rowIndex"
-        @click="VizualiseRow(row, rowIndex)"
-        :class="rowIndex != this.selectedRowIndex ? 'bg-white border-b dark:bg-gray-800 dark:border-gray-700 border-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600' : 'bg-blue-100 '"
-      >
-        <td
-          v-for="(value, colIndex) in row"
-          :key="colIndex"
-          class="border border-gray-300 dark:border-gray-700 p-2"
+  <div
+    :style="{
+      maxHeight: data.length >= 11 ? '400px' : 'unset',
+      overflowY: data.length >= 11 ? 'auto' : 'unset',
+      overflowX: 'auto',
+      width: '100%'
+    }"
+  >
+    <table class="w-full text-sm text-left rtl:text-right text-gray-500 dark:text-gray-400 mt-4">
+      <thead class="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
+        <tr>
+          <th
+            v-for="(header, index) in headers"
+            :key="index"
+            class="px-6 py-3 cursor-pointer relative"
+            @click="sortData(index)"
+            :class="{
+              'text-blue-600': sortIndex === index,
+              'bg-gray-200': sortIndex === index,
+              'dark:bg-gray-800': sortIndex === index,
+            }"
+          >
+            <div class="flex items-center space-x-2">
+              <span>{{ header }}</span>
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                class="w-3 h-3 inline-block"
+                :class="{
+                  'font-bold': sortIndex === index && sortOrder === 'desc',
+                  'scale-120': sortIndex === index && sortOrder === 'desc',
+                }"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M19 9l-7 7-7-7"
+                />
+              </svg>
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                class="w-3 h-3 inline-block"
+                :class="{
+                  'font-bold': sortIndex === index && sortOrder === 'asc',
+                  'scale-120': sortIndex === index && sortOrder === 'asc',
+                }"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M5 15l7-7 7 7"
+                />
+              </svg>
+            </div>
+          </th>
+        </tr>
+      </thead>
+      <tbody v-if="data.length > 0">
+        <tr
+          v-for="(row, rowIndex) in sorted"
+          :key="rowIndex"
+          @click="VizualiseRow(row, rowIndex)"
+          :class="rowIndex != selectedRowIndex
+            ? 'bg-white border-b dark:bg-gray-800 dark:border-gray-700 border-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600'
+            : 'bg-blue-100'"
         >
-          {{ value }}
-        </td>
-      </tr>
-    </tbody>
-  </table>
+          <td
+            v-for="(value, colIndex) in row"
+            :key="colIndex"
+            class="border border-gray-300 dark:border-gray-700 p-2"
+          >
+            {{ value }}
+          </td>
+        </tr>
+      </tbody>
+      <tbody v-else>
+        <tr>
+          <td
+            class="border border-gray-300 dark:border-gray-700 p-2 text-center"
+            :colspan="headers.length"
+          >
+            Aucune donnée
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
 </template>
 
   
