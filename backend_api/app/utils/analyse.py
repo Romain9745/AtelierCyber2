@@ -7,8 +7,6 @@ from fastapi import Depends, HTTPException
 from sqlalchemy.orm import Session
 from utils.pièce_jointe import *
 
-
-
 class Email(BaseModel):
     email_id: int
     from_email: str
@@ -24,6 +22,7 @@ class EmailAnalysis(BaseModel):
     user_account_id: int
 
 async def analyse_email(email: Email,account: str,db: Session) -> EmailAnalysis:
+    print("analyse_email")
     try:
         user_account= db.query(EmailAccountinDB).filter(EmailAccountinDB.email == account).first()
         user_account_id = user_account.id
@@ -58,12 +57,12 @@ async def analyse_email(email: Email,account: str,db: Session) -> EmailAnalysis:
                     break
         
         # Analyse the email for phishing
-        async with httpx.AsyncClient() as client:
-            response = await client.post("https://localhost:8080/IA", json={
-            "email": {**email.dict(), "timestamp": email.timestamp.isoformat()}
-            })
-            phishing_detected = response.json().get("phishing_detected")
-            explanation = response.json().get("explanation")        
+        #async with httpx.AsyncClient() as client:
+        #    response = await client.post("https://localhost:8080/IA", json={
+        #    "email": {**email.dict(), "timestamp": email.timestamp.isoformat()}
+        #    })
+        #    phishing_detected = response.json().get("phishing_detected")
+        #    explanation = response.json().get("explanation")        
         return EmailAnalysis(phishing_detected=phishing_detected, explanation=explanation, user_account_id=user_account_id)
 
 

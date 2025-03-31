@@ -112,6 +112,10 @@ async def check_mail(email: Email, mail: str, client: imaplib.IMAP4_SSL, db: Ses
             client.copy(email_id, spam_folder)
             client.store(email_id, '+FLAGS', '\\Deleted')
             client.expunge()
+            
+            # Récupérer le nouvel ID de l'email
+            email.email_id=get_new_uid(client)
+            
             db.query(UserStatsinDB).filter(UserStatsinDB.user_id == email_analys.user_account_id).update({
                 UserStatsinDB.mails_blocked: UserStatsinDB.mails_blocked + 1
             })
@@ -119,9 +123,6 @@ async def check_mail(email: Email, mail: str, client: imaplib.IMAP4_SSL, db: Ses
             if global_stats:
                 global_stats.total_mails_blocked += 1
         else:
-            client.store(email_id, '+FLAGS', '\\Seen')
-            client.copy(email_id, 'INBOX')
-            client.store(email_id, '+FLAGS', '\\Deleted')
             db.query(UserStatsinDB).filter(UserStatsinDB.user_id == email_analys.user_account_id).update({
                 UserStatsinDB.mail_authentic: UserStatsinDB.mail_authentic + 1
             })
@@ -130,6 +131,7 @@ async def check_mail(email: Email, mail: str, client: imaplib.IMAP4_SSL, db: Ses
                 global_stats.total_mail_authentic += 1
 
         db.add(MailsInDb(
+            id=int(email.email_id.strip('{}')) if isinstance(email.email_id, str) else email.email_id,
             source=email.from_email,
             recipient=email.to_email,
             subject=email.subject,
@@ -153,6 +155,7 @@ async def check_mail(email: Email, mail: str, client: imaplib.IMAP4_SSL, db: Ses
         })
 
         db.commit()
+        fetch_email_by_uid(client, email.email_id)
 
     except Exception as e:
         print(f"Error analysing email: {e}")
@@ -226,3 +229,64 @@ def fetch_latest_email(client):
 def get_email_imap_accounts(db: Session):
     email_imap_accounts = db.query(EmailAccountinDB).filter(EmailAccountinDB.account_type == 1).all()
     return email_imap_accounts
+
+def get_new_uid(client: imaplib.IMAP4_SSL) -> str:
+    try:
+        # Sélectionner la boîte mail
+        client.select('INBOX/HOOKSHIELD_SPAM')
+        
+        # Rechercher tous les emails dans la boîte
+        result, email_ids = client.uid('search', None, 'ALL')
+        
+        if result != 'OK' or not email_ids[0]:
+            print("Aucun email trouvé.")
+            return ""
+        
+        # Obtenir l'ID du dernier email
+        latest_email_uid = email_ids[0].split()[-1].decode()
+        
+        print("UID du dernier email :", latest_email_uid)
+        return latest_email_uid
+    
+    except Exception as e:
+        print(f"Erreur: {e}")
+        return ""
+    
+def fetch_email_by_uid(client: imaplib.IMAP4_SSL, uid: str) -> str:
+    try:
+        if not uid.isdigit():
+            print("UID invalide. UID is ", uid)
+            return ""
+
+        client.select('INBOX/HOOKSHIELD_SPAM')
+        result, msg_data = client.uid('fetch', uid, '(RFC822)')
+        
+        if result != 'OK' or not msg_data or not any(isinstance(part, tuple) for part in msg_data):
+            print("Échec lors de la récupération de l'email.")
+            return ""
+        
+        for response_part in msg_data:
+            if isinstance(response_part, tuple):
+                msg = email.message_from_bytes(response_part[1], policy=policy.default)
+                print(f"Sujet: {msg['subject']}")
+                print(f"De: {msg['from']}")
+                print(f"À: {msg['to']}")
+                print("Contenu:")
+                
+                if msg.is_multipart():
+                    for part in msg.walk():
+                        if part.get_content_type() == 'text/plain':
+                            email_body = part.get_payload(decode=True).decode(part.get_content_charset() or 'utf-8')
+                            print(email_body)
+                            return email_body
+                else:
+                    email_body = msg.get_payload(decode=True).decode(msg.get_content_charset() or 'utf-8')
+                    print(email_body)
+                    return email_body
+        
+    except imaplib.IMAP4.error as e:
+        print(f"IMAP error: {e}")
+        return ""
+    except ValueError as e:
+        print(f"Value error: {e}")
+        return ""
