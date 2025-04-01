@@ -6,6 +6,7 @@ from typing import Optional
 from fastapi import Depends, HTTPException
 from sqlalchemy.orm import Session
 from utils.pièce_jointe import *
+from utils.add_to_blacklist import *
 
 class Email(BaseModel):
     email_id: int
@@ -63,6 +64,10 @@ async def analyse_email(email: Email,account: str,db: Session) -> EmailAnalysis:
         #    })
         #    phishing_detected = response.json().get("phishing_detected")
         #    explanation = response.json().get("explanation")        
+        
+        if phishing_detected==True:
+            add_to_main_blacklist(email.from_email, "Send a phishing email to "+email.to_email, db)
+            
         return EmailAnalysis(phishing_detected=phishing_detected, explanation=explanation, user_account_id=user_account_id)
 
 

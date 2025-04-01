@@ -85,8 +85,6 @@ def logout(response: Response):
 def me(user: UserInfo = Depends(get_current_user)):
     return user
 
-
-
 def authenticate_user(db, email: str, password: str):
     user_hashed_password = get_user_hashed_password(db, email)
     if not user_hashed_password:

@@ -112,7 +112,6 @@ CREATE TABLE blacklist (
     added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     main_blacklist BOOLEAN DEFAULT FALSE,
     UNIQUE(user_email, email),
-    CONSTRAINT fk_user_email FOREIGN KEY (user_email) REFERENCES users(email),
     CONSTRAINT chk_email CHECK (email LIKE '%@%.%')
 );
 

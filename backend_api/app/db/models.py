@@ -62,7 +62,6 @@ class BlacklistInDb(Base):
     # Contrainte d'intégrité et unicité
     __table_args__ = (
         CheckConstraint("email LIKE '%@%.%'", name='chk_email_format'),
-        UniqueConstraint('user_email', 'email', name='unique_user_email')  # Assurer l'unicité de la combinaison user_email + email
     )
 
     user = relationship("UserInDB", back_populates="blacklists")
