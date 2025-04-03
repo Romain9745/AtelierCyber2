@@ -9,7 +9,8 @@ from transformers_interpret import SequenceClassificationExplainer
 
 app = FastAPI()
 
-
+class EmailRequest(BaseModel):
+    email_content: str
     
 model = transformers.AutoModelForSequenceClassification.from_pretrained("ealvaradob/bert-finetuned-phishing")
 tokenizer = transformers.AutoTokenizer.from_pretrained("ealvaradob/bert-finetuned-phishing")
@@ -46,13 +47,13 @@ def verify_api_key(api_key: str = Security(api_key_header)):
     return api_key
     
 @app.post("/predict")
-async def predict(email_content: str, api_key: str = Depends(verify_api_key)):
+async def predict(request: EmailRequest, api_key: str = Depends(verify_api_key)):
     try:
         # Prédiction du modèle
-        result = classifier(email_content)
+        result = classifier(request.email_content)
         label = result[0][0]['label']
         score = result[0][0]['score']
-        explanation = generate_explanation(email_content, label, score)
+        explanation = generate_explanation(request.email_content, label, score)
 
 
         return {

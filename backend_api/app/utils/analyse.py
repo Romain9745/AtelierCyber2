@@ -6,7 +6,8 @@ from typing import Optional
 from fastapi import Depends, HTTPException
 from sqlalchemy.orm import Session
 from utils.pièce_jointe import *
-from utils.add_to_blacklist import *API_KEY = "your-secure-api-key"
+from utils.add_to_blacklist import *
+API_KEY = "your-secure-api-key"
 API_KEY_NAME = "X-API-KEY"
 
 class Email(BaseModel):
@@ -58,14 +59,17 @@ async def analyse_email(email: Email,account: str,db: Session) -> EmailAnalysis:
                     explanation = f"Malicious attachment detected: {attachment['filename']}"
                     break
         
+        print("do iget here ?")
         # Analyse the email for phishing
-        async with httpx.AsyncClient() as client:
-            print(email.body)
-            response = await client.post(
-            "http://host.docker.internal:7080/predict",
-            data={'email_content': email.body},
-            headers={API_KEY_NAME: API_KEY}  # Add the API key in the header
-            )
+        async with httpx.AsyncClient(timeout=httpx.Timeout(1000.0)) as client:
+            try:
+                response = await client.post(
+                "http://host.docker.internal:7080/predict",
+                json={"email_content": email.body},
+                headers={API_KEY_NAME: API_KEY}  # Add the API key in the header
+                )
+            except httpx.RequestError as e:
+                print(f"An error occurred while sending the request: {e}")
             phishing = response.json().get("label")
             if phishing == "phishing":
                 phishing_detected = True

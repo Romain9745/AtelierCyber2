@@ -11,9 +11,11 @@ from routers.auth import get_current_user
 from utils.users import UserInfo,pwd_context
 from typing import Annotated
 from datetime import datetime
-from utils.imap import start_imap_listener_after_login, stop_imap_listener
+from utils.imap import check_mail
 from config import cipher
 from pydantic import BaseModel
+from fastapi.concurrency import run_in_threadpool
+import asyncio
 
 
 
@@ -27,6 +29,10 @@ class IMAPLogin(BaseModel):
     email: str
     password: str
 
+class EmailAnalysisRequest(BaseModel):
+    email: Email
+    account: str
+
 
 @router.get("/email_accounts")
 def get_email_accounts(user: Annotated[UserInfo, Depends(get_current_user)], db: Session = Depends(get_db)):
@@ -35,7 +41,6 @@ def get_email_accounts(user: Annotated[UserInfo, Depends(get_current_user)], db:
 
 # IMAP Login
 #----------------------------------------------------------------------------------------------------------------------------
-from imapclient import IMAPClient
 
 def imap_login(host: str, email: str, password: str, db: Session):
     try:
@@ -53,7 +58,6 @@ def login(request : IMAPLogin,user: Annotated[UserInfo, Depends(get_current_user
             encrypted_password = cipher.encrypt(request.password.encode()).decode()
             db.add(EmailAccountinDB(email=request.email, added_by=userinDB.id, account_type=1, imap_password=encrypted_password, imap_host=request.host,created_at=datetime.now()))
             db.commit()
-            background_tasks.add_task(start_imap_listener_after_login, request.email, request.password, request.host, db)
             return {"message": "IMAP account added successfully "}
         
 @router.post("/delete/imap")
@@ -66,8 +70,13 @@ def delete_imap(request: EmailDeleteRequest,user: Annotated[UserInfo, Depends(ge
 
     db.delete(email_account)
     db.commit()
-    stop_imap_listener(email)
     return {"message": "IMAP account deleted successfully",}
+
+@router.post("/imap/email")
+async def get_mail(request:EmailAnalysisRequest, background_tasks: BackgroundTasks):
+    asyncio.create_task(check_mail(request.email, request.account))
+    return {"message": "Email analysis started"}
+
 
 
 #----------------------------------------------------------------------------------------------------------------------------

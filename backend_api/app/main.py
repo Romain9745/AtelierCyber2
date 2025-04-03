@@ -10,25 +10,21 @@ from routers.emails import router as emails
 from routers.stats import router as stats
 from fastapi.middleware.cors import CORSMiddleware
 from utils.db import get_db
-from utils.imap import start_imap_listeners, stop_imap_listeners
 from routers.stats import create_global_stats
 from routers.auth import create_first_admin_account
-import asyncio
-import threading
+
 
 global db
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    print("🚀 Lifespan: Entered")
+    print("Lifespan: Entered")
     db = next(get_db())
     create_global_stats(db)
     create_first_admin_account(db)
-    start_imap_listeners(db)
 
     yield
 
-    print("🛑 Arrêt de l'application...")
-    stop_imap_listeners()
+    print("Arrêt de l'application...")
 
 
 app = FastAPI(lifespan=lifespan)
