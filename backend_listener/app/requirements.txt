@@ -1,0 +1,8 @@
+bs4
+aioimaplib
+cryptography
+dotenv
+aiomysql
+sqlalchemy
+httpx
+pydantic

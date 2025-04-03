@@ -7,6 +7,8 @@ from fastapi import Depends, HTTPException
 from sqlalchemy.orm import Session
 from utils.pièce_jointe import *
 from utils.add_to_blacklist import *
+API_KEY = "your-secure-api-key"
+API_KEY_NAME = "X-API-KEY"
 
 class Email(BaseModel):
     email_id: int
@@ -57,17 +59,25 @@ async def analyse_email(email: Email,account: str,db: Session) -> EmailAnalysis:
                     explanation = f"Malicious attachment detected: {attachment['filename']}"
                     break
         
+        print("do iget here ?")
         # Analyse the email for phishing
-        #async with httpx.AsyncClient() as client:
-        #    response = await client.post("https://localhost:8080/IA", json={
-        #    "email": {**email.dict(), "timestamp": email.timestamp.isoformat()}
-        #    })
-        #    phishing_detected = response.json().get("phishing_detected")
-        #    explanation = response.json().get("explanation")        
-        
-        if phishing_detected==True:
-            add_to_main_blacklist(email.from_email, "Send a phishing email to "+email.to_email, db)
-            
+        async with httpx.AsyncClient(timeout=httpx.Timeout(1000.0)) as client:
+            try:
+                response = await client.post(
+                "http://host.docker.internal:7080/predict",
+                json={"email_content": email.body},
+                headers={API_KEY_NAME: API_KEY}  # Add the API key in the header
+                )
+            except httpx.RequestError as e:
+                print(f"An error occurred while sending the request: {e}")
+            phishing = response.json().get("label")
+            if phishing == "phishing":
+                phishing_detected = True
+            else:
+                phishing_detected = False
+            explanation = response.json().get("explanation")
+            if phishing_detected==True:
+                add_to_main_blacklist(email.from_email, "Send a phishing email to "+email.to_email, db)
         return EmailAnalysis(phishing_detected=phishing_detected, explanation=explanation, user_account_id=user_account_id)
 
 

@@ -25,7 +25,7 @@ services:
 
   api:
     build: 
-      context: backend_api/app
+      context: backend_api
       dockerfile: Dockerfile
     environment:
       DATABASE_URL: "mysql+pymysql://hookadmin:admin123@mariadb:3306/Hookshield"
@@ -44,6 +44,33 @@ services:
     depends_on:
       api:
         condition: service_started
+
+  listener:
+    build: 
+      context: backend_listener
+      dockerfile: Dockerfile
+    environment:
+      DATABASE_URL: "mysql+aiomysql://hookadmin:admin123@mariadb:3306/Hookshield"
+    depends_on:
+      api:
+        condition: service_started
+
+  #api_ia:
+  #  build: 
+  #  context: IA_api/app
+  #  dockerfile: Dockerfile
+  #  ports:
+  #    - "7080:7080"
+  #  depends_on:
+  #    api:
+  #      condition: service_started
+  #  deploy:
+  #    resources:
+  #        reservations:
+  #          devices:
+  #            - driver: nvidia
+  #              count: 1
+  #              capabilities: [gpu]
 
 volumes:
   mariadb_data:
