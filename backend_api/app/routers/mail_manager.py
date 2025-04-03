@@ -15,11 +15,13 @@ from utils.imap import check_mail
 from config import cipher
 from pydantic import BaseModel
 from fastapi.concurrency import run_in_threadpool
+import concurrent.futures
 import asyncio
 
 
 
 router = APIRouter(tags=["MailManager"])
+executor = concurrent.futures.ThreadPoolExecutor()
 
 class EmailDeleteRequest(BaseModel):
     email: str
@@ -72,9 +74,10 @@ def delete_imap(request: EmailDeleteRequest,user: Annotated[UserInfo, Depends(ge
     db.commit()
     return {"message": "IMAP account deleted successfully",}
 
+
 @router.post("/imap/email")
 async def get_mail(request:EmailAnalysisRequest, background_tasks: BackgroundTasks):
-    asyncio.create_task(check_mail(request.email, request.account))
+    background_tasks.add_task(check_mail, request.email, request.account)
     return {"message": "Email analysis started"}
 
 
