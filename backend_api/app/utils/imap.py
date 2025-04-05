@@ -1,12 +1,11 @@
 from sqlalchemy.orm import Session
 from config import cipher
-from imapclient import IMAPClient
 from email.utils import parsedate_tz, mktime_tz
 from email import policy
 from bs4 import BeautifulSoup
 import imaplib
 from datetime import datetime
-from db.models import MailsInDb, EmailAccountinDB, UserStatsinDB, GlobalStatsinDB
+from db.models import MailsInDb, EmailAccountinDB, UserStatsinDB, GlobalStatsinDB, TicketInDB
 import email
 import asyncio
 from email.utils import parseaddr, parsedate_tz, mktime_tz
@@ -161,8 +160,6 @@ async def check_mail(email: Email, mail: str, client: imaplib.IMAP4_SSL, db: Ses
         print(f"Error analysing email: {e}")
 
 
-
-
 def fetch_latest_email(client):
     """Fetches the latest unread email and extracts attachments if available"""
     try:
@@ -252,6 +249,28 @@ def get_new_uid(client: imaplib.IMAP4_SSL) -> str:
         print(f"Erreur: {e}")
         return ""
     
+def get_new_uid_inbox(client: imaplib.IMAP4_SSL) -> str:
+    try:
+        # Sélectionner la boîte mail
+        client.select('INBOX')
+        
+        # Rechercher tous les emails dans la boîte
+        result, email_ids = client.uid('search', None, 'ALL')
+        
+        if result != 'OK' or not email_ids[0]:
+            print("Aucun email trouvé.")
+            return ""
+        
+        # Obtenir l'ID du dernier email
+        latest_email_uid = email_ids[0].split()[-1].decode()
+        
+        print("UID du dernier email :", latest_email_uid)
+        return latest_email_uid
+    
+    except Exception as e:
+        print(f"Erreur: {e}")
+        return ""
+    
 def fetch_email_by_uid(client: imaplib.IMAP4_SSL, uid: str) -> str:
     try:
         if not uid.isdigit():
@@ -290,3 +309,47 @@ def fetch_email_by_uid(client: imaplib.IMAP4_SSL, uid: str) -> str:
     except ValueError as e:
         print(f"Value error: {e}")
         return ""
+    
+def send_email_to_inbox(email: str, password: str, imap_server: str, db: Session, uid: str):
+    print("The variables are ", email, password, imap_server)
+    try:
+        with imaplib.IMAP4_SSL(imap_server) as client:
+            client.login(email, password)
+            client.select("INBOX/HOOKSHIELD_SPAM")
+            print("client selected the box INBOX/HOOKSHIELD_SPAM")
+            
+            fetch_email_by_uid(client, uid)
+            
+            client.uid('COPY', str(uid), 'INBOX')
+            print("copy to INBOX")
+            client.uid('STORE', str(uid), '+FLAGS', '\\Deleted')
+            print("FLAG deleted")
+            client.expunge()
+            print("expunge")
+            print(f"Message {uid} traité avec succès.")
+            
+            new_uid = get_new_uid_inbox(client)
+            if not new_uid:
+                raise ValueError(f"Impossible d'obtenir un nouveau UID pour le message {uid}")
+            
+            try:
+                existing_mail = db.query(MailsInDb).filter_by(id=uid).first()
+                existing_mail.id = new_uid
+                db.commit()
+                print("Email modifié dans la DB")
+                
+                existing_entry = db.query(TicketInDB).filter_by(mail_uid=uid).first()
+                existing_entry.last_modification_at = datetime.now()
+                db.commit()
+                print("Ticket modifié dans la DB")
+            except Exception as db_error:
+                print(f"Erreur lors de la mise à jour en base : {db_error}")
+
+    except imaplib.IMAP4.error as e:
+        # Gestion des erreurs spécifiques à IMAP4
+        print(f"Erreur IMAP avec le message {uid} : {e}")
+
+    except Exception as e:
+        # Gestion des erreurs générales
+        print(f"Erreur inattendue lors du traitement du message {uid} : {e}")
+

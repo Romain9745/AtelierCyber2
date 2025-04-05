@@ -8,6 +8,7 @@ from routers.admin import router as admin
 from routers.blacklist import router as blacklist
 from routers.emails import router as emails
 from routers.stats import router as stats
+from routers.tickets import router as tickets
 from fastapi.middleware.cors import CORSMiddleware
 from utils.db import get_db
 from utils.imap import start_imap_listeners, stop_imap_listeners
@@ -55,6 +56,7 @@ app.include_router(admin)
 app.include_router(blacklist)
 app.include_router(emails)
 app.include_router(stats)
+app.include_router(tickets)
 
 
 if __name__ == "__main__":
