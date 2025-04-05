@@ -14,6 +14,9 @@ class MailInfo(BaseModel):
     
 class MailBodyInfo(BaseModel):
     email_body: str
+    
+class MailUidInfo(BaseModel):
+    email_uid: int
 
         
 @router.get('/blocked_emails')
@@ -33,6 +36,17 @@ def get_emails(source=str, recipient=str, subject=str, explanation=str, db: Sess
         result = db.query(MailsInDb.email_body).filter(MailsInDb.source == source,MailsInDb.recipient == recipient,MailsInDb.subject == subject,MailsInDb.explanation == explanation).first()      
         if result:
             return MailBodyInfo(email_body=result.email_body)
+        else:
+            raise HTTPException(status_code=404, detail="No blacklist entry found")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    
+@router.get('/email_uid')
+def get_emails(source=str, recipient=str, subject=str, explanation=str, db: Session = Depends(get_db)):
+    try:
+        result = db.query(MailsInDb.id).filter(MailsInDb.source == source,MailsInDb.recipient == recipient,MailsInDb.subject == subject,MailsInDb.explanation == explanation).first()      
+        if result:
+            return MailUidInfo(email_uid=result.id)
         else:
             raise HTTPException(status_code=404, detail="No blacklist entry found")
     except Exception as e:
