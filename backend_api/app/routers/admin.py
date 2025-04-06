@@ -20,7 +20,7 @@ class UserOut(BaseModel):
     role_id: Role
     last_login: datetime
     
-class TicketinfoToSsend(BaseModel):
+class TicketinfoToSend(BaseModel):
     mail_uid: int
     user_mail: str
     state: int
@@ -87,7 +87,7 @@ def get_tickets(db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="No ticket entry found")
 
     try:
-        return [TicketinfoToSsend(mail_uid=result.mail_uid, state=result.state, made_at=result.made_at, last_modification_at=result.last_modification_at, user_mail=result.email) for result in results]
+        return [TicketinfoToSend(mail_uid=result.mail_uid, state=result.state, made_at=result.made_at, last_modification_at=result.last_modification_at, user_mail=result.email) for result in results]
 
     except Exception as e:
         print(f"Unexpected error: {e}")  # Debugging info

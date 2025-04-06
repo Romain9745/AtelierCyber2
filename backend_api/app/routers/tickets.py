@@ -9,7 +9,7 @@ from utils.db import get_db
 # ,dependencies=[Depends(CheckRole(Role.admin))]
 router = APIRouter(tags=["Tickets"])
 
-class TicketinfoToSsend(BaseModel):
+class TicketinfoToSend(BaseModel):
     mail_uid: int
     user_mail: str
     state: int
@@ -20,6 +20,7 @@ class TicketInfo(BaseModel):
     mail_uid: int
     user_mail: str
     state: int
+    user_explanation: str
     
 class StateInfo(BaseModel):
     mail_uid: int
@@ -35,6 +36,7 @@ class MailInfo(BaseModel):
     subject: str
     email_body: str
     explanation: str
+    user_explanation: str
     
 @router.post('/ticket')
 def create_ticket(entry: TicketInfo, db: Session = Depends(get_db)):
@@ -43,7 +45,7 @@ def create_ticket(entry: TicketInfo, db: Session = Depends(get_db)):
         if not result:
             raise HTTPException(status_code=404, detail="User not found")
         
-        new_entry = TicketInDB(mail_uid =entry.mail_uid, state=entry.state, made_at=datetime.now(), last_modification_at=datetime.now(), user_id=result.id)
+        new_entry = TicketInDB(mail_uid =entry.mail_uid, state=entry.state,user_explanation=entry.user_explanation, made_at=datetime.now(), last_modification_at=datetime.now(), user_id=result.id)
         db.add(new_entry)
         db.commit()
         return {"message": "Email ajouté à la liste des tickets"}
@@ -61,21 +63,21 @@ def get_ticket_data(mail: str, state: int, date: str, db: Session = Depends(get_
         print(f"User ID found: {user_id.id}")
 
         # Vérifier si le ticket existe
-        mail_uid = db.query(TicketInDB.mail_uid).filter(TicketInDB.user_id == user_id.id,TicketInDB.state == state,TicketInDB.last_modification_at == date).first()
-        if not mail_uid:
+        ticket = db.query(TicketInDB.mail_uid,TicketInDB.user_explanation).filter(TicketInDB.user_id == user_id.id,TicketInDB.state == state,TicketInDB.last_modification_at == date).first()
+        if not ticket:
             print(f"No ticket found for user ID: {user_id.id}, state: {state}, date: {date}")
             raise HTTPException(status_code=404, detail=f"No ticket found for the specified criteria")
-        print(f"Mail UID found: {mail_uid.mail_uid}")
+        print(f"Mail UID found: {ticket.mail_uid}")
 
         # Vérifier si les informations du mail existent
-        result = db.query(MailsInDb.source, MailsInDb.recipient, MailsInDb.subject, MailsInDb.email_body, MailsInDb.explanation).filter(MailsInDb.id == mail_uid.mail_uid).first()
+        result = db.query(MailsInDb.source, MailsInDb.recipient, MailsInDb.subject, MailsInDb.email_body, MailsInDb.explanation).filter(MailsInDb.id == ticket.mail_uid).first()
         if not result:
-            print(f"No mail entry found with ID: {mail_uid.mail_uid}")
+            print(f"No mail entry found with ID: {ticket.mail_uid}")
             raise HTTPException(status_code=404, detail=f"No mail entry found with the specified ID")
         print(f"Mail entry found: {result}")
 
         # Retourner les données du mail
-        return MailInfo(source=result.source,recipient=result.recipient,subject=result.subject,email_body=result.email_body,explanation=result.explanation)
+        return MailInfo(source=result.source,recipient=result.recipient,subject=result.subject,email_body=result.email_body,explanation=result.explanation,user_explanation=ticket.user_explanation)
     except HTTPException as http_exc:
         print(f"HTTP exception: {http_exc.detail}")
         raise http_exc

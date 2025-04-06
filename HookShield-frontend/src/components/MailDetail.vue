@@ -99,29 +99,40 @@
     </div>
 
     <div style="margin-top: 24px; display: flex; flex-direction: column; gap: 12px;">
-      <button 
-        v-if="selectedEmail.blockReason !== 'No phishing detected' && selectedEmail.blockReason !=='This email has been removed from the phishing folder by an administrator.'"
-        @click="createTicket"
-        @mouseover="handlePrimaryBtnHover"
-        @mouseout="handlePrimaryBtnOut"
-        style="
-          font-weight: 600;
-          padding: 12px;
-          border-radius: 8px;
-          border: none;
-          cursor: pointer;
-          transition: all 0.2s ease;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 8px;
-          background-color: #4f46e5;
-          color: white;
-        "
-      >
-        <i class="fas fa-shield-alt"></i>
-        Déclarer comme non phishing
-      </button>
+        <template v-if="!showTicketForm">
+          <button 
+            v-if="selectedEmail.blockReason !== 'No phishing detected' && selectedEmail.blockReason !== 'This email has been removed from the phishing folder by an administrator.'"
+            @click="showTicketForm = true"
+            @mouseover="handlePrimaryBtnHover"
+            @mouseout="handlePrimaryBtnOut"
+            style="font-weight: 600; padding: 12px; border-radius: 8px; border: none; cursor: pointer; background-color: #4f46e5; color: white;"
+          >
+            <i class="fas fa-shield-alt"></i>
+            Déclarer comme non phishing
+          </button>
+        </template>
+
+        <template v-else>
+          <textarea
+            v-model="userExplanation"
+            placeholder="Expliquez pourquoi ce mail n'est pas du phishing..."
+            style="width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #e5e7eb; font-size: 0.95rem; resize: vertical;"
+            rows="4"
+          ></textarea>
+          <span v-if="errorMessage" style="color: #ef4444; font-size: 0.85rem;">{{ errorMessage }}</span>
+          <button
+            type="button"
+            @click="createTicket"
+            :disabled="userExplanation.trim() === ''"
+            :class="{
+              'bg-blue-600 hover:bg-blue-700 text-white cursor-pointer padding-12 rounded-lg border-none transition-all duration-200 ease-in-out': userExplanation.trim() !== '',
+              'bg-gray-300 text-gray-500 cursor-not-allowed padding-12 rounded-lg border-none': userExplanation.trim() === ''
+            }"
+          >
+            <i class="fas fa-paper-plane"></i>
+            Envoyer le ticket
+          </button>
+        </template>
       
       <button
         @click="closeModal"
@@ -162,13 +173,24 @@ export default {
       default: false
     }
   },
+  data() {
+    return {
+      showTicketForm: false,
+      userExplanation: '',
+      errorMessage: '',
+    };
+  },
   methods: {
     closeModal() {
       this.$emit('close');
     },
     async createTicket() {
-      console.log("Create ticket : ")
-      console.log(this.selectedEmail)
+      this.errorMessage = '';
+      if (!this.userExplanation) {
+        this.errorMessage = 'Veuillez fournir une explication.';
+        return;
+      }
+
       try {
         const uid = await axiosInstance.get('/email_uid', {
           params: {
@@ -182,12 +204,12 @@ export default {
         const user_email = await axiosInstance.get('/get_mail_user', {
           params: { mail: this.selectedEmail.recipient },
         });
-        console.log('User email:', user_email.data.user_mail); 
 
-        const response = await axiosInstance.post('/ticket', {
+        await axiosInstance.post('/ticket', {
           mail_uid: uid.data.email_uid,
           user_mail: user_email.data.user_mail,
           state: 1,
+          user_explanation: this.userExplanation.trim(),
         });
 
         this.$emit('close');

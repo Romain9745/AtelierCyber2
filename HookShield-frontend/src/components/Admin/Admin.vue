@@ -81,6 +81,7 @@ export default {
                 ? 'Modification refusée' 
                 : 'Etat inconnu',
           date: ticket.last_modification_at,
+
         }));
         console.log(this.logData);
       })
@@ -131,6 +132,7 @@ export default {
           params: {
             mail: rowData.mail_address,
             state: this.state,
+            user_explanation: rowData.user_explanation,
             date: rowData.date,
           },
         });

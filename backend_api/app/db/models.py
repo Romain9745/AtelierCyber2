@@ -156,6 +156,7 @@ class TicketInDB(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     mail_uid = Column(Integer, ForeignKey('email_analyses.id', ondelete='CASCADE'), nullable=False)
     user_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    user_explanation = Column(Text, nullable=False)
     state = Column(Integer, default=1)
     made_at = Column(TIMESTAMP, server_default=func.now())
     last_modification_at = Column(TIMESTAMP, server_default=func.now())

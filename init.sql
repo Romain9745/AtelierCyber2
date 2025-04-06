@@ -167,6 +167,7 @@ CREATE TABLE tickets (
     id INT AUTO_INCREMENT PRIMARY KEY,
     mail_uid INT NOT NULL,
     user_id INT NOT NULL,
+    user_explanation TEXT NOT NULL,
     state INT DEFAULT 1,
     made_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     last_modification_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
