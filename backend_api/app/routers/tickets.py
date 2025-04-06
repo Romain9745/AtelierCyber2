@@ -38,7 +38,6 @@ class MailInfo(BaseModel):
     
 @router.post('/ticket')
 def create_ticket(entry: TicketInfo, db: Session = Depends(get_db)):
-    print("ddd", entry.mail_uid, entry.user_mail, entry.state)
     try:
         result = db.query(UserInDB.id).filter(UserInDB.email == entry.user_mail).first()
         if not result:
@@ -89,15 +88,12 @@ def get_ticket_data(mail: str, state: int, date: str, db: Session = Depends(get_
 @router.get('/get_mail_user')
 def get_emails(mail: str, db: Session = Depends(get_db)):
     try:
-        # Étape 1 : Log de l'entrée
         print(f"Received mail: {mail}")
 
-        # Étape 2 : Requête pour récupérer user_id
         user_id = db.query(EmailAccountinDB.added_by).filter(EmailAccountinDB.email == mail).first()
         if user_id:
             print(f"User ID found for mail '{mail}': {user_id.added_by}")  # Log de user_id
 
-            # Étape 3 : Requête pour récupérer l'email utilisateur
             user_email = db.query(UserInDB.email).filter(UserInDB.id == user_id.added_by).first()
             if user_email:
                 print(f"User email found for User ID '{user_id.added_by}': {user_email.email}")  # Log de l'email utilisateur
