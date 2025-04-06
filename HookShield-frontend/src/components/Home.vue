@@ -27,7 +27,7 @@
 import Table from "@/components/commun/Table.vue";
 import SearchBar from "./commun/SearchBar.vue";
 import MailDetail from "./MailDetail.vue";
-import axiosInstance from "@/AxiosInstance";
+import axiosInstance from "@/AxiosInstance";import { useAuthStore } from '@/store/auth'; 
 
 export default {
   components: {
@@ -49,7 +49,9 @@ export default {
   methods: {
     async fetchBlockedEmails() {
       try {
-        const response = await axiosInstance.get('/blocked_emails');
+        const authStore = useAuthStore();
+        console.log(authStore.email)
+        const response = await axiosInstance.get('/blocked_emails', {params: {mail: authStore.email,},});
         console.log("The answer is "+response.data.subject);
         this.tableData = response.data.map(email => ({
           recipient: email.recipient,
