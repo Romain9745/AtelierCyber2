@@ -316,16 +316,12 @@ def send_email_to_inbox(email: str, password: str, imap_server: str, db: Session
         with imaplib.IMAP4_SSL(imap_server) as client:
             client.login(email, password)
             client.select("INBOX/HOOKSHIELD_SPAM")
-            print("client selected the box INBOX/HOOKSHIELD_SPAM")
             
             fetch_email_by_uid(client, uid)
             
             client.uid('COPY', str(uid), 'INBOX')
-            print("copy to INBOX")
             client.uid('STORE', str(uid), '+FLAGS', '\\Deleted')
-            print("FLAG deleted")
             client.expunge()
-            print("expunge")
             print(f"Message {uid} traité avec succès.")
             
             new_uid = get_new_uid_inbox(client)
@@ -336,12 +332,10 @@ def send_email_to_inbox(email: str, password: str, imap_server: str, db: Session
                 existing_mail = db.query(MailsInDb).filter_by(id=uid).first()
                 existing_mail.id = new_uid
                 db.commit()
-                print("Email modifié dans la DB")
                 
                 existing_entry = db.query(TicketInDB).filter_by(mail_uid=uid).first()
                 existing_entry.last_modification_at = datetime.now()
                 db.commit()
-                print("Ticket modifié dans la DB")
             except Exception as db_error:
                 print(f"Erreur lors de la mise à jour en base : {db_error}")
 
