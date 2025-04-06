@@ -2,7 +2,7 @@ from pydantic import BaseModel
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from utils.db import get_db
-from db.models import MailsInDb
+from db.models import MailsInDb, EmailAccountinDB, UserInDB
 
 router = APIRouter(tags=["mails"])
 
@@ -19,9 +19,10 @@ class MailUidInfo(BaseModel):
     email_uid: int
 
 @router.get('/blocked_emails')
-def get_emails(db: Session = Depends(get_db)):
+def get_emails(mail: str, db: Session = Depends(get_db)):
+    print(mail)
     try:
-        results = db.query(MailsInDb.source, MailsInDb.recipient, MailsInDb.subject, MailsInDb.explanation).all()
+        results = db.query(MailsInDb.source, MailsInDb.recipient, MailsInDb.subject, MailsInDb.explanation).join(EmailAccountinDB, MailsInDb.recipient == EmailAccountinDB.email).join(UserInDB, EmailAccountinDB.added_by == UserInDB.id).filter(UserInDB.email == mail).all()
         if results:
             return [MailInfo(source=result.source, recipient=result.recipient, subject=result.subject, explanation=result.explanation) for result in results]
         else:
