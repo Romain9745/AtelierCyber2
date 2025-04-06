@@ -1,14 +1,14 @@
 from sqlalchemy.orm import Session
 from config import cipher
-<<<<<<< HEAD
-=======
 from email.utils import parsedate_tz, mktime_tz
->>>>>>> 257b002 (tickets backend)
 from email import policy
+from bs4 import BeautifulSoup
 import imaplib
 from datetime import datetime
 from db.models import MailsInDb, EmailAccountinDB, UserStatsinDB, GlobalStatsinDB, TicketInDB
 import email
+import asyncio
+from email.utils import parseaddr, parsedate_tz, mktime_tz
 from utils.analyse import Email, analyse_email, EmailAnalysis
 from db.db import SessionLocal
 
@@ -167,7 +167,7 @@ def fetch_latest_email(client):
 def get_email_imap_accounts(db: Session):
     email_imap_accounts = db.query(EmailAccountinDB).filter(EmailAccountinDB.account_type == 1).all()
     return email_imap_accounts
->>>>>>> 257b002 (tickets backend)
+>>>>>>> 8ba6aee7573af6db7c138fc36be6097563419410
 
 def get_new_uid(client: imaplib.IMAP4_SSL) -> str:
     try:
@@ -258,16 +258,12 @@ def send_email_to_inbox(email: str, password: str, imap_server: str, db: Session
         with imaplib.IMAP4_SSL(imap_server) as client:
             client.login(email, password)
             client.select("INBOX/HOOKSHIELD_SPAM")
-            print("client selected the box INBOX/HOOKSHIELD_SPAM")
             
             fetch_email_by_uid(client, uid)
             
             client.uid('COPY', str(uid), 'INBOX')
-            print("copy to INBOX")
             client.uid('STORE', str(uid), '+FLAGS', '\\Deleted')
-            print("FLAG deleted")
             client.expunge()
-            print("expunge")
             print(f"Message {uid} traité avec succès.")
             
             new_uid = get_new_uid_inbox(client)
@@ -278,12 +274,10 @@ def send_email_to_inbox(email: str, password: str, imap_server: str, db: Session
                 existing_mail = db.query(MailsInDb).filter_by(id=uid).first()
                 existing_mail.id = new_uid
                 db.commit()
-                print("Email modifié dans la DB")
                 
                 existing_entry = db.query(TicketInDB).filter_by(mail_uid=uid).first()
                 existing_entry.last_modification_at = datetime.now()
                 db.commit()
-                print("Ticket modifié dans la DB")
             except Exception as db_error:
                 print(f"Erreur lors de la mise à jour en base : {db_error}")
 
