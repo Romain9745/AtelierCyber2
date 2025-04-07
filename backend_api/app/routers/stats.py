@@ -5,7 +5,7 @@ from datetime import datetime
 from utils.db import get_db
 from sqlalchemy.orm import Session
 from sqlalchemy import func
-from db.models import GlobalStatsinDB, UserStatsinDB, MailsInDb, ReportinDB, FileSignatureinDB
+from db.models import GlobalStatsinDB, UserStatsinDB, MailsInDb, ReportinDB, FileSignatureinDB, TicketInDB
 from utils.users import  UserInDB
 from routers.auth import get_current_user,CheckRole,Role, UserInfo
 
@@ -94,7 +94,7 @@ def fetch_stats(db) -> StatsResponse:
     # Report stats: Calculate false positives and false negatives
     report_stats = db.query(
         func.sum((ReportinDB.report_type == 'false_positive')).label("total_false_positive"),
-        func.sum((ReportinDB.report_type == 'false_negative')).label("total_false_negative")
+        func.sum((TicketInDB.state==2)).label("total_false_negative")
     ).first()
 
     report_stats_dict = {

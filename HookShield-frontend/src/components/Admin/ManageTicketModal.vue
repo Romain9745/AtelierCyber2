@@ -2,7 +2,7 @@
   <div class="fixed inset-0 flex items-center justify-center" style="background-color: rgba(0, 0, 0, 0.5);" @click.self="closeModal">
     <!-- Boîte de détails du mail -->
   <div
-    v-if="selectedEmail"
+    v-if="selectedTicket"
     style="
       background-color: white;
       border-radius: 16px;
@@ -13,8 +13,11 @@
       transform: translateY(0);
       transition: all 0.3s ease;
       border: 1px solid #e5e7eb;
+      /* Ajout de hauteur maximale et défilement */
+      max-height: 90vh;
+      overflow-y: auto;
     "
-    :class="{ 'dark-mode': isDarkMode }"
+    :class="{ 'dark-mode': isDarkMode, 'custom-scrollbar': true }"
   >
     <!-- En-tête avec bouton de fermeture -->
     <div style="
@@ -24,7 +27,11 @@
       margin-bottom: 24px;
       padding-bottom: 16px;
       border-bottom: 2px solid #f3f4f6;
-    ">
+      position: sticky;
+      top: 0;
+      background-color: white;
+      z-index: 10;
+    " :class="{ 'dark-mode-header': isDarkMode }">
       <h2 style="
         font-size: 1.5rem;
         font-weight: 700;
@@ -64,17 +71,17 @@
     <div style="display: flex; flex-direction: column; gap: 16px;">
       <div style="display: flex; align-items: flex-start; gap: 12px;">
         <span style="font-weight: 600; color: #1f2937; min-width: 70px;">De :</span>
-        <span style="color: #4b5563; word-break: break-word; flex: 1;">{{ selectedEmail.sender }}</span>
+        <span style="color: #4b5563; word-break: break-word; flex: 1;">{{ selectedTicket.source }}</span>
       </div>
       
       <div style="display: flex; align-items: flex-start; gap: 12px;">
         <span style="font-weight: 600; color: #1f2937; min-width: 70px;">À :</span>
-        <span style="color: #4b5563; word-break: break-word; flex: 1;">{{ selectedEmail.recipient }}</span>
+        <span style="color: #4b5563; word-break: break-word; flex: 1;">{{ selectedTicket.recipient }}</span>
       </div>
       
       <div style="display: flex; align-items: flex-start; gap: 12px;">
         <span style="font-weight: 600; color: #1f2937; min-width: 70px;">Objet :</span>
-        <span style="color: #4b5563; word-break: break-word; flex: 1;">{{ selectedEmail.subject }}</span>
+        <span style="color: #4b5563; word-break: break-word; flex: 1;">{{ selectedTicket.subject }}</span>
       </div>
       
       <div style="margin-top: 16px; border-top: 1px solid #e5e7eb; padding-top: 16px;">
@@ -92,50 +99,89 @@
           line-height: 1.6;
           margin-top: 8px;
           color: #1f2937;
-        ">
-          {{ email_body }}
+        " class="custom-scrollbar">
+          {{ selectedTicket.email_body }}
         </div>
+      </div>
+
+      <div style="margin-top: 16px; border-top: 1px solid #e5e7eb; padding-top: 16px;">
+        <div style="display: flex; align-items: flex-start; gap: 12px;">
+          <span style="font-weight: 600; color: #1f2937; min-width: 70px;">Explication du blocage :</span>
+        </div>
+        <div style="
+          background-color: #f3f4f6;
+          border: 1px solid #e5e7eb;
+          border-radius: 8px;
+          padding: 16px;
+          max-height: 200px;
+          overflow-y: auto;
+          font-size: 0.95rem;
+          line-height: 1.6;
+          margin-top: 8px;
+          color: #1f2937;
+        " class="custom-scrollbar">
+          {{ selectedTicket.explanation }}
+        </div>
+      </div>
+
+      <div style="margin-top: 16px; border-top: 1px solid #e5e7eb; padding-top: 16px;">
+        <div style="display: flex; align-items: flex-start; gap: 12px;">
+          <span style="font-weight: 600; color: #1f2937; min-width: 70px;">Explication de l'utilisateur :</span>
+        </div>
+        <div style="
+          background-color: #f3f4f6;
+          border: 1px solid #e5e7eb;
+          border-radius: 8px;
+          padding: 16px;
+          max-height: 200px;
+          overflow-y: auto;
+          font-size: 0.95rem;
+          line-height: 1.6;
+          margin-top: 8px;
+          color: #1f2937;
+        " class="custom-scrollbar">
+          {{ selectedTicket.user_explanation }}
       </div>
     </div>
 
-    <div style="margin-top: 24px; display: flex; flex-direction: column; gap: 12px;">
-        <template v-if="!showTicketForm">
-          <button 
-            v-if="selectedEmail.blockReason !== 'No phishing detected' && selectedEmail.blockReason !== 'This email has been removed from the phishing folder by an administrator.'"
-            @click="showTicketForm = true"
-            @mouseover="handlePrimaryBtnHover"
-            @mouseout="handlePrimaryBtnOut"
-            style="font-weight: 600; padding: 12px; border-radius: 8px; border: none; cursor: pointer; background-color: #4f46e5; color: white;"
-          >
-            <i class="fas fa-shield-alt"></i>
-            Déclarer comme non phishing
-          </button>
-        </template>
-
-        <template v-else>
-          <textarea
-            v-model="userExplanation"
-            placeholder="Expliquez pourquoi ce mail n'est pas du phishing..."
-            style="width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #e5e7eb; font-size: 0.95rem; resize: vertical;"
-            rows="4"
-          ></textarea>
-          <span v-if="errorMessage" style="color: #ef4444; font-size: 0.85rem;">{{ errorMessage }}</span>
-          <button
-            type="button"
-            @click="createTicket"
-            :disabled="userExplanation.trim() === ''"
-            :class="{
-              'bg-blue-600 hover:bg-blue-700 text-white cursor-pointer padding-12 rounded-lg border-none transition-all duration-200 ease-in-out': userExplanation.trim() !== '',
-              'bg-gray-300 text-gray-500 cursor-not-allowed padding-12 rounded-lg border-none': userExplanation.trim() === ''
-            }"
-          >
-            <i class="fas fa-paper-plane"></i>
-            Envoyer le ticket
-          </button>
-        </template>
+    <div style="
+      margin-top: 24px; 
+      display: flex; 
+      flex-direction: column; 
+      gap: 12px;
+      position: sticky;
+      bottom: 0;
+      background-color: white;
+      padding-top: 16px;
+      z-index: 10;
+    " :class="{ 'dark-mode-footer': isDarkMode }">
+      <button 
+        v-if="state==1"
+        @click="accept"
+        @mouseover="handlePrimaryBtnHover"
+        @mouseout="handlePrimaryBtnOut"
+        style="
+          font-weight: 600;
+          padding: 12px;
+          border-radius: 8px;
+          border: none;
+          cursor: pointer;
+          transition: all 0.2s ease;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+          background-color: #4f46e5;
+          color: white;
+        "
+      >
+        <i class="fas fa-shield-alt"></i>
+        Accepter la demande
+      </button>
       
       <button
-        @click="closeModal"
+        v-if="state==1"
+        @click="refuse"
         @mouseover="handleDangerBtnHover"
         @mouseout="handleDangerBtnOut"
         style="
@@ -154,9 +200,11 @@
         "
       >
         <i class="fas fa-times"></i>
-        Fermer
+        Rejeter la demande
       </button>
+
     </div>
+  </div>
   </div>
   </div>
 </template>
@@ -166,51 +214,63 @@ import axiosInstance from "@/AxiosInstance";
 
 export default {
   props: {
-    selectedEmail: Object,
+    selectedTicket: Object,
     email_body: String,
+    state: Number,
     isDarkMode: {
       type: Boolean,
       default: false
     }
   },
-  data() {
-    return {
-      showTicketForm: false,
-      userExplanation: '',
-      errorMessage: '',
-    };
+  mounted() {
+    console.log("Selected ticket in modal:", this.selectedTicket);
   },
   methods: {
     closeModal() {
       this.$emit('close');
     },
-    async createTicket() {
-      this.errorMessage = '';
-      if (!this.userExplanation) {
-        this.errorMessage = 'Veuillez fournir une explication.';
-        return;
-      }
-
+    async accept() {
       try {
         const uid = await axiosInstance.get('/email_uid', {
           params: {
-            source: this.selectedEmail.sender,
-            recipient: this.selectedEmail.recipient,
-            subject: this.selectedEmail.subject,
-            explanation: this.selectedEmail.blockReason,
+            source: this.selectedTicket.source,
+            recipient: this.selectedTicket.recipient,
+            subject: this.selectedTicket.subject,
+            explanation: this.selectedTicket.explanation,
           },
         });
 
-        await axiosInstance.post('/ticket', {
+        const response = await axiosInstance.post('/admin/ticket_state', {
           mail_uid: uid.data.email_uid,
-          state: 1,
-          user_explanation: this.userExplanation.trim(),
+          state: 2,
+          last_modification_at: new Date().toISOString(),
         });
-
         this.$emit('close');
       } catch (error) {
         console.error(error.message);
       }
+      this.$emit('close');
+    },
+    async refuse() {
+      try {
+        const uid = await axiosInstance.get('/email_uid', {
+          params: {
+            source: this.selectedTicket.source,
+            recipient: this.selectedTicket.recipient,
+            subject: this.selectedTicket.subject,
+            explanation: this.selectedTicket.explanation,
+          },
+        });
+
+        const response = await axiosInstance.post('/admin/ticket_state', {
+          mail_uid: uid.data.email_uid,
+          state: 3,
+          last_modification_at: new Date().toISOString(),
+        })
+      } catch (error) {
+        console.error(error.message);
+      }
+      this.$emit('close');
     },
     handleMouseOver(e) {
       e.target.style.backgroundColor = 'rgba(239, 68, 68, 0.1)';
@@ -238,10 +298,32 @@ export default {
 
 
 <style>
+.custom-scrollbar::-webkit-scrollbar {
+  width: 8px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 10px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 10px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
+
 .dark-mode {
   background-color: #1e293b !important;
   border-color: #4b5563 !important;
   color: #f9fafb !important;
+}
+
+.dark-mode-header, .dark-mode-footer {
+  background-color: #1e293b !important;
 }
 
 .dark-mode h2 {
@@ -268,5 +350,17 @@ export default {
 
 .dark-mode div[style*="border-top: 1px solid #e5e7eb"] {
   border-top-color: #4b5563 !important;
+}
+
+.dark-mode .custom-scrollbar::-webkit-scrollbar-track {
+  background: #374151;
+}
+
+.dark-mode .custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #4b5563;
+}
+
+.dark-mode .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #6b7280;
 }
 </style>

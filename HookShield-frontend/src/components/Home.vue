@@ -7,18 +7,15 @@
     
     <Table :data="tableData" :headers="headers" @row-click="handleRowClick" />
 
-<!-- Modal du détail du mail 
-    <div v-if="selectedEmail" class="mt-8 p-4 bg-gray-200 dark:bg-gray-800 rounded-lg">
-      <h2 class="text-xl font-semibold text-gray-900 dark:text-white">Aperçu du Mail</h2>
-      <div class="mt-4">
-        <p><strong>Destinataire:</strong> {{ selectedEmail.recipient }}</p>
-        <p><strong>Expéditeur:</strong> {{ selectedEmail.sender }}</p>
-        <p><strong>Sujet:</strong> {{ selectedEmail.subject }}</p>
-        <p><strong>Raison du blocage:</strong> {{ selectedEmail.blockReason }}</p> 
-        </div>
-        </div> -->
         <MailDetail v-if="selectedEmail" :selectedEmail="selectedEmail" :email_body="email_body" @close="closeMailDetail" class="mt-8 p-4 bg-gray-200 dark:bg-gray-800 rounded-lg" />
-      
+        <!-- Deuxième tableau : Tickets -->
+      <div class="flex items-center justify-between mb-4">
+        <h1 class="text-3xl font-bold text-gray-900 dark:text-white" @click="hideOrShowData('TicketTable')">Tickets</h1>
+      </div>
+      <Table class="TicketTable" :data="TicketData" :headers="headersTickets" @row-click="handleTicketClick"/>
+
+      <TicketModal :selectedTicket="selectedTicket" :state=state v-if="selectedTicket" @close="selectedTicket = null"/>
+
     
   </div>
 </template>
@@ -27,13 +24,15 @@
 import Table from "@/components/commun/Table.vue";
 import SearchBar from "./commun/SearchBar.vue";
 import MailDetail from "./MailDetail.vue";
-import axiosInstance from "@/AxiosInstance";
+import TicketModal from "./commun/TicketModal.vue";
+import axiosInstance from "@/AxiosInstance"; 
 
 export default {
   components: {
     Table,
     SearchBar,
     MailDetail,
+    TicketModal,
   },
   data() {
     return {
@@ -41,31 +40,51 @@ export default {
       headers: ['Destinataire', 'Expéditeur', 'Sujet', 'Raison'],
       selectedEmail: null,
       email_body: "",
+      TicketData: [],
+      headersTickets: ['Auteur', 'Etat', 'Créé le / Modifié le'],
+      selectedTicket: null,
     };
   },
   mounted() {
     this.fetchBlockedEmails();
+
+    axiosInstance.get('http://localhost:8000/tickets')
+      .then(response => {
+        this.TicketData = response.data.map(ticket => ({
+          mail_address: ticket.user_mail,
+          state: (ticket.state == 1) 
+            ? 'En cours de vérification' 
+            : (ticket.state == 2) 
+              ? 'Modification approuvée' 
+              : (ticket.state == 3) 
+                ? 'Modification refusée' 
+                : 'Etat inconnu',
+          date: ticket.last_modification_at,
+
+        }));
+        console.log(this.TicketData);
+      })
+      .catch(error => {
+        console.error("Error while fetching users:", error);
+      });
   },
   methods: {
     async fetchBlockedEmails() {
       try {
         const response = await axiosInstance.get('/blocked_emails');
-        console.log("The answer is "+response.data.subject);
         this.tableData = response.data.map(email => ({
           recipient: email.recipient,
           sender: email.source,
           subject: email.subject,
           blockReason: email.explanation,
         }));
-        console.log("the table is ", this.tableData)
       } catch (error) {
         console.error("Erreur lors de la récupération des emails bloqués :", error);
       }
     },
     async handleRowClick(rowData) {
-      console.log("Données de la ligne sélectionnée :", rowData);
       this.selectedEmail = rowData;
-      this.email_body = ""; // Réinitialise le corps de l'email
+      this.email_body = "";
 
       try {
         const response = await axiosInstance.get('/email_body', {
@@ -77,17 +96,34 @@ export default {
           }
         });
         
-        console.log("Corps de l'email récupéré :", response.data.email_body);
         this.email_body = response.data.email_body; // Stocke le corps de l'email
         
       } catch (error) {
         console.error("Erreur lors de la récupération du corps de l'email :", error);
         if (error.response && error.response.status === 404) {
-            alert("Aucun corps d'email trouvé pour cette entrée.");
+            console.log("Aucun corps d'email trouvé pour cette entrée.");
         } else {
-            alert("Une erreur s'est produite lors de la récupération du corps de l'email.");
+          console.log("Une erreur s'est produite lors de la récupération du corps de l'email.");
         }
       }
+    },
+    async handleTicketClick(rowData) {
+      this.state=3;
+      if (rowData.state=="En cours de vérification") {
+        this.state = 1;
+      } else if (rowData.state=="Modification approuvée"){
+        this.state = 2;
+      }
+      let mailData= await axiosInstance.get('/get_ticket_data', {
+          params: {
+            mail: rowData.mail_address,
+            state: this.state,
+            user_explanation: rowData.user_explanation,
+            date: rowData.date,
+          },
+        });
+      this.selectedTicket=mailData.data
+      console.log(this.selectedTicket)
     },
     closeMailDetail() {
       this.selectedEmail = null;

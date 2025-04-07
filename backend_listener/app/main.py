@@ -54,14 +54,13 @@ async def imap_listener(account):
     try:
             client = aioimaplib.IMAP4_SSL(account.imap_host)
             await client.wait_hello_from_server()
-
+            print('decrypting')
             password = cipher.decrypt(account.imap_password.encode()).decode()
-            print(password,email,account.imap_host)
             await client.login(email, password)
+            print('logged in')
             await client.select("INBOX")
             while True:
                 status, messages = await client.search('UNSEEN')
-                print(status, messages)
                 if status == 'OK' and messages[0]:
                 
                     print(f"{len(messages)} nouveaux emails sur {email} !")
@@ -76,6 +75,8 @@ async def imap_listener(account):
                 await asyncio.sleep(CHECK_INTERVAL)  # Ne bloque pas les autres tâches
     except Exception as e:
         print(f"Erreur pour {email} : {e}")
+        active_tasks[email].cancel()
+        del active_tasks[email]  # Supprimer la tâche de la liste active
 
 
 async def monitor_accounts():

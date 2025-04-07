@@ -11,23 +11,27 @@
       <Table class="userTable" :data="userData" :headers="headers" @row-click="handleRowClick"/>
     
 
-    <!-- Deuxième tableau : Historique -->
+    <!-- Deuxième tableau : Tickets -->
       <div class="flex items-center justify-between mb-4">
-        <h1 class="text-3xl font-bold text-gray-900 dark:text-white" @click="hideOrShowData('logTable')">Historique</h1>
+        <h1 class="text-3xl font-bold text-gray-900 dark:text-white" @click="hideOrShowData('logTable')">Tickets</h1>
       </div>
-      <Table class="logTable" :data="logData" :headers="headersLogs" />
+      <Table class="logTable" :data="logData" :headers="headersLogs" @row-click="handleTicketClick"/>
     </div>
 
     <!-- Liste d'utilisateurs sélectionnés (UserList) -->
     <UserView :selectedUser="selectedUser" v-if="selectedUser" @close="selectedUser = null" @save ="SaveUser"/>
     <CreateUserModal v-if="ShowAddModal" @close="ShowAddModal = false" @user-added = "AddUSer"/>
+
+    <!-- Gestion du ticket sélectionné -->
+    <ManageTicketModal :selectedTicket="selectedTicket" :state=state v-if="selectedTicket" @close="selectedTicket = null"/>
   </div>
 </template>
 
 <script>
 import Table from "@/components/commun/Table.vue";
 import UserView from "./UserView.vue";
-import CreateUserModal from "./CreateUserModal.vue";
+import CreateUserModal from "./CreateUserModal.vue"
+import ManageTicketModal from "./ManageTicketModal.vue"
 import axiosInstance from "@/AxiosInstance";
 
 export default {
@@ -35,20 +39,18 @@ export default {
     Table,
     UserView,
     CreateUserModal,
+    ManageTicketModal,
   },
 
   data() {
     return {
       userData: [],
-      logData: [
-        { author: 'Alice Opéhidémervèye', description: 'Fermeture ticket 6966642', date: '28-10-2024' },
-        { author: 'Mr. Indestructible', description: 'Ajout de tiboinshape@fraud.com dans la blacklist', date: '27-10-2024' },
-        { author: 'Charlie Chaplin', description: 'A été promu administrateur', date: '27-10-2024' },
-        { author: 'Frank Dubosc', description: 'pasunefraude@gmail.com a été retiré de la blacklist', date: '27-10-2024' },
-      ],
+      logData: [],
       headers: ['Utilisateur', 'Niveau de permission', "Date d'ajout"],
-      headersLogs: ['Auteur', 'Description', 'Date'],
+      headersLogs: ['Auteur', 'Etat', 'Créé le / Modifié le'],
       selectedUser: null,
+      selectedTicket: null,
+      state: Number,
       ShowAddModal: false,
     };
   },
@@ -62,6 +64,26 @@ export default {
           date: user.last_login,
         }));
         console.log(this.userData);
+      })
+      .catch(error => {
+        console.error("Error while fetching users:", error);
+      });
+
+    axiosInstance.get('http://localhost:8000/admin/tickets')
+      .then(response => {
+        this.logData = response.data.map(ticket => ({
+          mail_address: ticket.user_mail,
+          state: (ticket.state == 1) 
+            ? 'En cours de vérification' 
+            : (ticket.state == 2) 
+              ? 'Modification approuvée' 
+              : (ticket.state == 3) 
+                ? 'Modification refusée' 
+                : 'Etat inconnu',
+          date: ticket.last_modification_at,
+
+        }));
+        console.log(this.logData);
       })
       .catch(error => {
         console.error("Error while fetching users:", error);
@@ -99,6 +121,24 @@ export default {
           console.error("Error while adding user:", error);
         });
     },
+    async handleTicketClick(rowData) {
+      this.state=3;
+      if (rowData.state=="En cours de vérification") {
+        this.state = 1;
+      } else if (rowData.state=="Modification approuvée"){
+        this.state = 2;
+      }
+      let mailData= await axiosInstance.get('/get_ticket_data', {
+          params: {
+            mail: rowData.mail_address,
+            state: this.state,
+            user_explanation: rowData.user_explanation,
+            date: rowData.date,
+          },
+        });
+      this.selectedTicket=mailData.data
+      console.log(this.selectedTicket)
+    }
   },
 };
 </script>

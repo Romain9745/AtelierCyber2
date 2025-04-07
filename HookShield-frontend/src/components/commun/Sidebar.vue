@@ -37,7 +37,7 @@
                         <span class="ms-3">Gestionnaire d'adresses</span>
                     </RouterLink>
                 </li>
-                <li>
+                <li v-if="isAdmin">
                     <RouterLink to="/admin" class="flex items-center p-2 text-gray-900 rounded-lg dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700 group gap-3">
                         <svg class="w-6 h-6 text-gray-800 dark:text-white mr-2" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 20">
                             <path d="M19.728 10.686c-2.38 2.256-6.153 3.381-9.875 3.381-3.722 0-7.4-1.126-9.571-3.371L0 10.437V18a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-7.6l-.272.286Z"/>
@@ -61,7 +61,18 @@
 </template>
 
 <script>
+import { useAuthStore } from '@/store/auth';
+import { mapState } from 'pinia';
+
 export default {
+  computed: {
+    ...mapState(useAuthStore, ['role']),
+    
+    isAdmin() {
+      return this.role === 'Admin';
+    }
+  },
+
   methods: {
     toggleSidebar() {
       this.$emit('close', "");

@@ -7,20 +7,16 @@ import { useAuthStore } from './store/auth';
 import { onMounted } from 'vue';
 
 const authStore = useAuthStore();
-const isAuthChecked = ref(false);
 
 
 onMounted(async () => {
   console.log("Checking authentication...");
   
   try {
-    await authStore.checkAuth();
+    //await authStore.checkAuth();
     console.log("Auth checked. User authenticated:", authStore.isAuthenticated);
   } catch (error) {
     console.error("Error during authentication check:", error);
-  } finally {
-    isAuthChecked.value = true;
-    console.log("Authentication check complete. Rendering app.");
   }
 });
 
@@ -29,7 +25,7 @@ const isSideBarVisible = ref(true);
 </script>
 
 <template>
-  <div v-if="isAuthChecked" :class="route.path === '/login' ? 'flex justify-center items-center h-screen bg-gray-100' : 'grid grid-rows-[auto_1fr] h-screen overflow-hidden'">
+  <div :class="route.path === '/login' ? 'flex justify-center items-center h-screen bg-gray-100' : 'grid grid-rows-[auto_1fr] h-screen overflow-hidden'">
     <!-- Navbar -->
     <header v-if="route.path !== '/login'" class="shadow-md z-50">
       <Navbar />

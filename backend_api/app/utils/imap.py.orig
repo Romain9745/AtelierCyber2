@@ -1,6 +1,5 @@
 from sqlalchemy.orm import Session
 from config import cipher
-from imapclient import IMAPClient
 from email.utils import parsedate_tz, mktime_tz
 from email import policy
 from bs4 import BeautifulSoup
@@ -96,7 +95,79 @@ async def check_mail(email: Email, mail: str):
         fetch_email_by_uid(client, email.email_id)
 
     except Exception as e:
+<<<<<<< HEAD
         print(f"Error checking email: {e}")
+=======
+        print(f"Error analysing email: {e}")
+
+
+def fetch_latest_email(client):
+    """Fetches the latest unread email and extracts attachments if available"""
+    try:
+        status, messages = client.search(None, 'UNSEEN')
+        if status != 'OK' or not messages[0]:
+            return
+
+        latest_email_id = messages[-1].split()[-1]
+        status, msg_data = client.fetch(latest_email_id, '(RFC822)')
+        if status != 'OK':
+            return
+
+        raw_email = msg_data[0][1]
+        msg = email.message_from_bytes(raw_email, policy=policy.default)
+
+        sender = msg["from"]
+        recipient = msg["to"]
+        subject = msg["subject"]
+        date_str = msg["date"]
+
+        sender_email = parseaddr(sender)[1]  # Extract only the email address
+        recipient_email = parseaddr(recipient)[1]
+
+        # Convert email date to timestamp
+        timestamp = None
+        if date_str:
+            parsed_date = parsedate_tz(date_str)
+            if parsed_date:
+                timestamp = mktime_tz(parsed_date)
+
+        body = ""
+        attachments = []
+
+        # Extract email content and attachments
+        if msg.is_multipart():
+            for part in msg.walk():
+                content_type = part.get_content_type()
+                content_disposition = str(part.get("Content-Disposition"))
+
+                # Extract plain text or HTML body
+                if content_type == "text/plain" and "attachment" not in content_disposition:
+                    body = part.get_payload(decode=True).decode(part.get_content_charset(), errors="ignore")
+                elif content_type == "text/html" and not body:
+                    body = part.get_payload(decode=True).decode(part.get_content_charset(), errors="ignore")
+
+                # Extract attachments
+                if part.get_filename():
+                    filename = part.get_filename()
+                    file_data = part.get_payload(decode=True)
+                    attachments.append({"filename": filename, "data": file_data})
+        else:
+            body = msg.get_payload(decode=True).decode(msg.get_content_charset(), errors="ignore")
+
+        # Convert HTML to text if necessary
+        text_body = BeautifulSoup(body, "html.parser").get_text()
+
+        print(f"Found {len(attachments)} attachment(s)")
+        return Email(email_id=latest_email_id, from_email=sender_email, to_email=recipient_email, subject=subject, body=text_body, timestamp=datetime.fromtimestamp(timestamp), attachments=attachments)
+    
+    except Exception as e: 
+        print(f"Error fetching email: {e}")
+
+
+def get_email_imap_accounts(db: Session):
+    email_imap_accounts = db.query(EmailAccountinDB).filter(EmailAccountinDB.account_type == 1).all()
+    return email_imap_accounts
+>>>>>>> 8ba6aee7573af6db7c138fc36be6097563419410
 
 def get_new_uid(client: imaplib.IMAP4_SSL) -> str:
     try:
@@ -200,11 +271,11 @@ def send_email_to_inbox(email: str, password: str, imap_server: str, db: Session
                 raise ValueError(f"Impossible d'obtenir un nouveau UID pour le message {uid}")
             
             try:
-                existing_mail = db.query(MailsInDb).filter(MailsInDb.id==uid).first()
+                existing_mail = db.query(MailsInDb).filter_by(id=uid).first()
                 existing_mail.id = new_uid
                 db.commit()
                 
-                existing_entry = db.query(TicketInDB).filter(TicketInDB.mail_uid==new_uid).first()
+                existing_entry = db.query(TicketInDB).filter_by(mail_uid=uid).first()
                 existing_entry.last_modification_at = datetime.now()
                 db.commit()
             except Exception as db_error:
