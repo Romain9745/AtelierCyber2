@@ -101,6 +101,7 @@ class MailsInDb(Base):
     folder_id = Column(Integer, ForeignKey('email_folders.id', ondelete='CASCADE'), nullable=False)
 
     source_email = Column(String, ForeignKey('email_accounts.email', ondelete='CASCADE'))
+    ticket = relationship('TicketInDB', backref='email_analyses')
     __table_args__ = (
         CheckConstraint("recipient LIKE '%@%.%'", name='chk_recipient_email_format'),
         CheckConstraint("source LIKE '%@%.%'", name='chk_source_email_format'),

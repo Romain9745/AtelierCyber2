@@ -7,8 +7,7 @@ from typing import List, Optional
 from pydantic import BaseModel
 from datetime import datetime
 from utils.db import get_db
-from config import cipher
-from utils.imap import send_email_to_inbox
+from utils.ticket import revoke_classification, TicketinfoToSend, StateInfo
 
 router = APIRouter(prefix="/admin",dependencies=[Depends(CheckRole(Role.admin))],tags=["Admin"])
 
@@ -20,17 +19,7 @@ class UserOut(BaseModel):
     role_id: Role
     last_login: datetime
     
-class TicketinfoToSend(BaseModel):
-    mail_uid: int
-    user_mail: str
-    state: int
-    made_at: datetime
-    last_modification_at: datetime
-    
-class StateInfo(BaseModel):
-    mail_uid: int
-    state: int
-    last_modification_at: datetime
+
 
 @router.post('/create_user', status_code=201)
 def create_user(user: User, db: Session = Depends(get_db)):
@@ -103,15 +92,7 @@ def change_ticket_state(entry: StateInfo, db: Session = Depends(get_db)):
             db.commit()                
             
             if entry.state == 2:
-                existing_mail = db.query(MailsInDb).filter_by(id=entry.mail_uid).first()
-                existing_mail.explanation = "This email has been removed from the phishing folder by an administrator."
-                db.commit()
-                
-                user = db.query(MailsInDb).filter_by(id=entry.mail_uid).first()
-                imap_data=db.query(EmailAccountinDB).filter_by(email=user.recipient).first()
-                imap_data.imap_password= cipher.decrypt(imap_data.imap_password.encode()).decode()
-            
-                send_email_to_inbox(imap_data.email, imap_data.imap_password, imap_data.imap_host, db, str(entry.mail_uid))
+                revoke_classification(entry, db)
             return {"message": "Etat du ticket modifié"}
         else: 
             raise HTTPException(status_code=404,detail=f"L'entrée avec mail_uid {entry.mail_uid} n'a pas été trouvée.")

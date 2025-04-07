@@ -58,6 +58,7 @@ def login(request : IMAPLogin,user: Annotated[UserInfo, Depends(get_current_user
         userinDB = db.query(UserInDB).filter(UserInDB.email == user.email).first()
         if userinDB:
             encrypted_password = cipher.encrypt(request.password.encode()).decode()
+            print(encrypted_password)
             db.add(EmailAccountinDB(email=request.email, added_by=userinDB.id, account_type=1, imap_password=encrypted_password, imap_host=request.host,created_at=datetime.now()))
             db.commit()
             return {"message": "IMAP account added successfully "}

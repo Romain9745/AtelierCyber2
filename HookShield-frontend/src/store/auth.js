@@ -5,9 +5,9 @@ import router from '@/router';
 
 export const useAuthStore = defineStore('auth', {
   state: () => ({
-    isAuthenticated: localStorage.getItem('isAuthenticated') === 'true', // Chargement depuis localStorage
-    email: localStorage.getItem('email') || "",
-    role: localStorage.getItem('role') || "",
+    isAuthenticated: false, // Chargement depuis localStorage
+    email: "",
+    role: "",
   }),
 
   actions: {
@@ -47,7 +47,6 @@ export const useAuthStore = defineStore('auth', {
             this.isAuthenticated = true;
 
             // Persister dans localStorage
-            localStorage.setItem('isAuthenticated', 'true');
             localStorage.setItem('email', this.email);
             localStorage.setItem('role', this.role);
           } else {
@@ -66,9 +65,6 @@ export const useAuthStore = defineStore('auth', {
       this.role = "";
       
       // Nettoyer les données dans localStorage
-      localStorage.removeItem('isAuthenticated');
-      localStorage.removeItem('email');
-      localStorage.removeItem('role');
       
       axiosInstance.post('http://localhost:8000/logout', {}, {
         withCredentials: true,

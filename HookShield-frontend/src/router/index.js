@@ -39,16 +39,20 @@ const router = createRouter({
       path: '/admin',
       name: 'admin',
       component: AdminView,
+      meta: {
+        requiresAdmin: true,
+      },
     }
   ],
 })
 
 router.beforeEach(async (to, from, next) => {
   const authStore = useAuthStore();
+  await authStore.checkAuth();
   if (!authStore.isAuthenticated && to.path !== '/login' ) {
     next('/login');
   } else {
-    if(to.meta.requiresAdmin && authStore.role !== 'admin') {
+    if(to.meta.requiresAdmin && authStore.role !== 'Admin') {
       next('/');
     }
     next();

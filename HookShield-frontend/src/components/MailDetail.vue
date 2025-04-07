@@ -201,13 +201,8 @@ export default {
           },
         });
 
-        const user_email = await axiosInstance.get('/get_mail_user', {
-          params: { mail: this.selectedEmail.recipient },
-        });
-
         await axiosInstance.post('/ticket', {
           mail_uid: uid.data.email_uid,
-          user_mail: user_email.data.user_mail,
           state: 1,
           user_explanation: this.userExplanation.trim(),
         });

@@ -7,6 +7,7 @@ from fastapi import Depends, HTTPException
 from sqlalchemy.orm import Session
 from utils.pièce_jointe import *
 from utils.add_to_blacklist import *
+from db.models import UserInDB
 API_KEY = "your-secure-api-key"
 API_KEY_NAME = "X-API-KEY"
 
@@ -29,6 +30,7 @@ async def analyse_email(email: Email,account: str,db: Session) -> EmailAnalysis:
     try:
         user_account= db.query(EmailAccountinDB).filter(EmailAccountinDB.email == account).first()
         user_account_id = user_account.id
+        user = db.query(UserInDB).filter(UserInDB.id == user_account.added_by).first()
 
         if not user_account_id:
             raise ValueError("User account not found")
@@ -41,7 +43,9 @@ async def analyse_email(email: Email,account: str,db: Session) -> EmailAnalysis:
             return EmailAnalysis(phishing_detected=False, explanation="email is whitelisted", user_account_id=user_account_id)
         # See for blacklist
         GlobalBlacklist = db.query(BlacklistInDb).filter(BlacklistInDb.email == email.from_email,BlacklistInDb.main_blacklist == True).first()
-        UserBlacklist = db.query(BlacklistInDb).filter(BlacklistInDb.email == email.from_email,BlacklistInDb.user_email == user_account.email).first()
+        print(email.from_email)
+        UserBlacklist = db.query(BlacklistInDb).filter(BlacklistInDb.email == email.from_email,BlacklistInDb.user_email == user.email).first()
+        print(UserBlacklist,user_account.email)
         if GlobalBlacklist or UserBlacklist:
             return EmailAnalysis(phishing_detected=True, explanation="email is blacklisted", user_account_id=user_account_id)
 

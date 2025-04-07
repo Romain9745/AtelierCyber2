@@ -6,7 +6,7 @@ from email import policy
 from bs4 import BeautifulSoup
 import imaplib
 from datetime import datetime
-from db.models import MailsInDb, EmailAccountinDB, UserStatsinDB, GlobalStatsinDB
+from db.models import MailsInDb, EmailAccountinDB, UserStatsinDB, GlobalStatsinDB, TicketInDB
 import email
 import asyncio
 from email.utils import parseaddr, parsedate_tz, mktime_tz
@@ -200,11 +200,11 @@ def send_email_to_inbox(email: str, password: str, imap_server: str, db: Session
                 raise ValueError(f"Impossible d'obtenir un nouveau UID pour le message {uid}")
             
             try:
-                existing_mail = db.query(MailsInDb).filter_by(id=uid).first()
+                existing_mail = db.query(MailsInDb).filter(MailsInDb.id==uid).first()
                 existing_mail.id = new_uid
                 db.commit()
                 
-                existing_entry = db.query(TicketInDB).filter_by(mail_uid=uid).first()
+                existing_entry = db.query(TicketInDB).filter(TicketInDB.mail_uid==new_uid).first()
                 existing_entry.last_modification_at = datetime.now()
                 db.commit()
             except Exception as db_error:
