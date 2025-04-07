@@ -26,7 +26,7 @@ def get_emails(mail: str, db: Session = Depends(get_db)):
         if results:
             return [MailInfo(source=result.source, recipient=result.recipient, subject=result.subject, explanation=result.explanation) for result in results]
         else:
-            return {"message ": "No blacklist entries found for this user."}
+            return {"message ": "No email entries found for this user."}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     
@@ -37,7 +37,7 @@ def get_emails(source=str, recipient=str, subject=str, explanation=str, db: Sess
         if result:
             return MailBodyInfo(email_body=result.email_body)
         else:
-            raise HTTPException(status_code=404, detail="No blacklist entry found")
+            raise HTTPException(status_code=404, detail="No mail body entry found")
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     
