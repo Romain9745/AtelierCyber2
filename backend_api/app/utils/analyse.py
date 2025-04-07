@@ -26,7 +26,6 @@ class EmailAnalysis(BaseModel):
     user_account_id: int
 
 async def analyse_email(email: Email,account: str,db: Session) -> EmailAnalysis:
-    print("analyse_email")
     try:
         user_account= db.query(EmailAccountinDB).filter(EmailAccountinDB.email == account).first()
         user_account_id = user_account.id
@@ -63,7 +62,6 @@ async def analyse_email(email: Email,account: str,db: Session) -> EmailAnalysis:
                     explanation = f"Malicious attachment detected: {attachment['filename']}"
                     break
         
-        print("do iget here ?")
         # Analyse the email for phishing
         async with httpx.AsyncClient(timeout=httpx.Timeout(1000.0)) as client:
             try:

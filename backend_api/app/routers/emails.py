@@ -28,6 +28,7 @@ def get_emails(user: Annotated[UserInfo, Depends(get_current_user)], db: Session
         if results:
             return [MailInfo(source=result.source, recipient=result.recipient, subject=result.subject, explanation=result.explanation) for result in results]
         else:
+            return {"message ": "No email entries found for this user."}
             return {"message ": "No blocked mails found for this user."}
     except Exception as e:
         print(e)

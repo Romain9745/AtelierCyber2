@@ -56,13 +56,11 @@ async def imap_listener(account):
             await client.wait_hello_from_server()
             print('decrypting')
             password = cipher.decrypt(account.imap_password.encode()).decode()
-
             await client.login(email, password)
             print('logged in')
             await client.select("INBOX")
             while True:
                 status, messages = await client.search('UNSEEN')
-                print(status, messages)
                 if status == 'OK' and messages[0]:
                 
                     print(f"{len(messages)} nouveaux emails sur {email} !")

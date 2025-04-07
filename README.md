@@ -16,7 +16,7 @@ Hookshield est une application de cybersécurité développée dans le cadre du 
 ## 2. Architecture du Projet
 
 ### Technologies Utilisées
-- **Frontend** : Next.js (JavaScript)
+- **Frontend** : Vue.js (JavaScript)
 - **Backend** : FastAPI (Python)
 - **Base de données** : MariaDB
 - **IA** : Modèles d'apprentissage automatique intégrés via FastAPI (Python)
@@ -51,7 +51,7 @@ Hookshield est une application de cybersécurité développée dans le cadre du 
    ```sh
    docker-compose up -d
    ```
-   Sans carte graphique, la méthode pour interpréter les résultats sont classifieurs sont bien plus lents et l'application n'est plus utilisable en temps réel
+   Sans carte graphique, la méthode pour interpréter les résultats du classifieur est bien plus lente et l'application n'est plus utilisable en temps réel
 
 
 ---
@@ -111,7 +111,7 @@ Le projet est divisé en plusieurs modules, chacun assigné à des membres de l'
 
 - **Base de données & API Backend** : Conception des modèles et routes API.
 - **Analyse des emails & Intelligence Artificielle** : Développement des algorithmes de classification.
-- **Interface utilisateur** : Conception sous Figma, développement en Next.js.
+- **Interface utilisateur** : Conception sous Figma, développement en Vue.js.
 
 Un diagramme de Gantt est utilisé pour suivre l'avancement des tâches.
 
