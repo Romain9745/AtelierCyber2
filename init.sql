@@ -106,13 +106,14 @@ CREATE TABLE notifications (
 
 CREATE TABLE blacklist (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    user_email VARCHAR(255),
-    email VARCHAR(100) NOT NULL UNIQUE,
+    user_email VARCHAR(255) NOT NULL,
+    email VARCHAR(100) NOT NULL,
     reason TEXT NOT NULL,
     added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     main_blacklist BOOLEAN DEFAULT FALSE,
-    UNIQUE(user_email, email),
-    CONSTRAINT chk_email CHECK (email LIKE '%@%.%')
+    CONSTRAINT uix_user_email_email UNIQUE(user_email, email),
+    CONSTRAINT chk_email CHECK (email LIKE '%@%.%'),
+    FOREIGN KEY (user_email) REFERENCES users(email) ON DELETE CASCADE
 );
 
 

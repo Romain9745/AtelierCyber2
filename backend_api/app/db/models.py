@@ -53,15 +53,15 @@ class BlacklistInDb(Base):
     __tablename__ = 'blacklist'
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    user_email = Column(String(255), ForeignKey('users.email', ondelete="CASCADE"), nullable=False)  # Référence à users.email
+    user_email = Column(String(255), ForeignKey('users.email', ondelete="CASCADE"), nullable=False)
     email = Column(String(100), nullable=False)
-    reason = Column(Text, nullable=False)  # Si reason est TEXT dans la table SQL
+    reason = Column(Text, nullable=False)
     added_at = Column(DateTime, default=func.now())
     main_blacklist = Column(Boolean, default=False)
 
-    # Contrainte d'intégrité et unicité
     __table_args__ = (
         CheckConstraint("email LIKE '%@%.%'", name='chk_email_format'),
+        UniqueConstraint('user_email', 'email', name='uix_user_email_email'),
     )
 
     user = relationship("UserInDB", back_populates="blacklists")

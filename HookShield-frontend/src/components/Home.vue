@@ -7,14 +7,14 @@
     
     <Table :data="tableData" :headers="headers" @row-click="handleRowClick" />
 
-        <MailDetail v-if="selectedEmail" :selectedEmail="selectedEmail" :email_body="email_body" @close="closeMailDetail" class="mt-8 p-4 bg-gray-200 dark:bg-gray-800 rounded-lg" />
+        <MailDetail v-if="selectedEmail" :selectedEmail="selectedEmail" :email_body="email_body" @close="closeMailDetail" class="fixed inset-0 z-50 mt-8 p-4 bg-gray-200 dark:bg-gray-800 rounded-lg" />
         <!-- Deuxième tableau : Tickets -->
       <div class="flex items-center justify-between mb-4">
-        <h1 class="text-3xl font-bold text-gray-900 dark:text-white" @click="hideOrShowData('TicketTable')">Tickets</h1>
+        <h1 class="text-3xl font-bold text-gray-900 dark:text-white">Tickets</h1>
       </div>
-      <Table class="TicketTable" :data="TicketData" :headers="headersTickets" @row-click="handleTicketClick"/>
+      <Table :data="TicketData" :headers="headersTickets" @row-click="handleTicketClick"/>
 
-      <TicketModal :selectedTicket="selectedTicket" :state=state v-if="selectedTicket" @close="selectedTicket = null"/>
+      <TicketModal :selectedTicket="selectedTicket" :state=state v-if="selectedTicket" @close="selectedTicket = null" class="fixed inset-0 z-50 mt-8 p-4 bg-gray-200 dark:bg-gray-800 rounded-lg" />
 
     
   </div>
@@ -47,9 +47,17 @@ export default {
   },
   mounted() {
     this.fetchBlockedEmails();
-
-    axiosInstance.get('http://localhost:8000/tickets')
-      .then(response => {
+    this.fetchTicket();
+    setInterval(() => {
+      this.fetchBlockedEmails();
+      this.fetchTicket();
+      console.log("Data refreshed");
+    }, 5000);
+  },
+  methods: {
+    async fetchTicket(){
+      try {
+        const response = await axiosInstance.get('/tickets');
         this.TicketData = response.data.map(ticket => ({
           mail_address: ticket.user_mail,
           state: (ticket.state == 1) 
@@ -60,15 +68,11 @@ export default {
                 ? 'Modification refusée' 
                 : 'Etat inconnu',
           date: ticket.last_modification_at,
-
         }));
-        console.log(this.TicketData);
-      })
-      .catch(error => {
-        console.error("Error while fetching users:", error);
-      });
-  },
-  methods: {
+      } catch (error) {
+        console.error("Erreur lors de la récupération des tickets :", error);
+      }
+    },
     async fetchBlockedEmails() {
       try {
         const response = await axiosInstance.get('/blocked_emails');

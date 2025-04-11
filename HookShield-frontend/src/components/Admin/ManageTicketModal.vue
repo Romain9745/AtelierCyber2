@@ -14,7 +14,7 @@
       transition: all 0.3s ease;
       border: 1px solid #e5e7eb;
       /* Ajout de hauteur maximale et défilement */
-      max-height: 90vh;
+      max-height:75vh;
       overflow-y: auto;
     "
     :class="{ 'dark-mode': isDarkMode, 'custom-scrollbar': true }"

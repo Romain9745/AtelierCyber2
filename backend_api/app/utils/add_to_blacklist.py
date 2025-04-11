@@ -14,13 +14,21 @@ def add_to_main_blacklist(
     try:
         if not db:
             raise HTTPException(status_code=500, detail="La session de base de données est invalide.")
+        
+        # Vérifier si l'email est déjà dans la blacklist
+        existing_entry = db.query(BlacklistInDb).filter(
+            BlacklistInDb.email == email_to_send,
+            BlacklistInDb.main_blacklist == True
+        ).first()
+        if existing_entry:
+            return {"message": "Email déjà présent dans la blacklist"}
 
         # Créer une nouvelle entrée dans la blacklist
         new_entry = BlacklistInDb(
             email=email_to_send,
             reason=reason_to_send,
             main_blacklist=True,
-            user_email=""
+            user_email="johndoe@gmail.com"
         )
         db.add(new_entry)
         db.commit()

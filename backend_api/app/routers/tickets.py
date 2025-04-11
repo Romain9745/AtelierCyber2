@@ -100,7 +100,7 @@ def get_ticket_data(mail: str, state: int, date: str,user: Annotated[UserInfo, D
     
 @router.get('/tickets')
 def get_tickets(user: Annotated[UserInfo,Depends(get_current_user)],db: Session = Depends(get_db)):
-    results = db.query(TicketInDB.mail_uid, TicketInDB.state, TicketInDB.made_at, TicketInDB.last_modification_at, UserInDB.email).join(UserInDB, TicketInDB.user_id == UserInDB.id).all()
+    results = db.query(TicketInDB.mail_uid, TicketInDB.state, TicketInDB.made_at, TicketInDB.last_modification_at, UserInDB.email).join(UserInDB).filter(UserInDB.email == user.email).all()
     print(results,user.email)
 
     if not results:

@@ -40,6 +40,8 @@ Hookshield est une application de cybersécurité développée dans le cadre du 
 
 ### Prérequis
 - **Docker**
+- **Cuda (version compatible avec Pytorch)**
+- **Python 3.10**
 
 ### Installation
 1. **Clonage du dépôt**
@@ -51,7 +53,37 @@ Hookshield est une application de cybersécurité développée dans le cadre du 
    ```sh
    docker-compose up -d
    ```
-   Sans carte graphique, la méthode pour interpréter les résultats du classifieur est bien plus lente et l'application n'est plus utilisable en temps réel
+3. **Démarrage de l'IA** (sans Docker)
+L'IA n'a pas été conteneurisé car elle doit tourner sur un GPU, ce qui la rend trop dépendant de l'hardware de chaque ordinateur sur lequel elle tourne
+   ```sh
+   cd IA_api
+   python -m . ./venv
+   ./venv/Scripts/activate #pour activer l'environnement virtuel
+   pip install requirements.txt
+   ```
+Si vous n'avez pas de carte graphique, vous pouvre directement lancer l'application :
+   ```sh
+   cd app
+   python ./main.py
+   ```
+Cependant les performences rendront l'application inutilisable.
+
+Si vous avez une carte graphique Nvidia :
+- Assurez vous d'avoir une version de cuda compatible avec Pytorch (11.8, 12.4, 12.6) sinon installez une de ces versions
+- En fonction de votre version, upgradez la version Pytorch en conséquence :
+```sh
+   pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cuXXX
+   ```
+En remplacant le XXX car votre version de cuda (118 pour 11.8 par exemple).
+
+Vous pouvez maintenant lancer l'application (les tests ont été fait avec une gti 1660 TI donc avec moins de 6VGRAM pas sûr que ça fonctionne) :
+```sh
+   cd app
+   python ./main.py
+   ```
+
+
+
 
 
 ---
@@ -82,7 +114,7 @@ Pour commencer, ajoutez un compte mail à protéger. Cliquez sur **"Gestionnaire
 
 ![Gestionnaire d'adresses vide](ImageforReadme/EmptyMailManager.png)  
 
-Cliquez sur **"Ajouter"** et sélectionnez la méthode de connexion **IMAP** (actuellement la seule entièrement fonctionnelle) :  
+Cliquez sur **"Ajouter"** et sélectionnez la méthode de connexion **IMAP** (la seule fonctionnelle) :  
 
 ![Ajout d'une adresse](ImageforReadme/MailManagerModal.png)  
 
@@ -102,7 +134,19 @@ Pour tester le fonctionnement de l'application (en attendant le déploiement de 
 
 Envoyez ensuite un mail depuis cette adresse **blacklistée** vers votre adresse protégée. Vous devriez voir qu'il a bien été bloqué :  
 
-![Email bloqué](ImageforReadme/Blockedmail.png)  
+![Email bloqué](ImageforReadme/Blockedmail.png)
+
+## Tickets
+
+Il est possible d'envoyer des requêtes aux administrateurs pour contester la classification d'un mail comme phishing, il suffit de :
+- Clicker sur le mail dans l'accueil pour le visualiser et cliquer sur "Déclarer comme non phishing" :
+![Visualisation Email](ImageforReadme/CreationTicket.png)
+- Donner une explication et soumettre le ticket :
+![Explication du Ticket](ImageforReadme/ExplicationTicket.png)
+- Il apparaît désormais sous le tableau ticket où l'on peut le suivre afin de connaitre la décision des administrateurs:
+![Tableau des Ticket](ImageforReadme/TabTicket.png)
+- Un administrateur peut quant à lui voir la demande et l'accepter (ou la refuser) :
+![Administration des Ticket](ImageforReadme/AdminTicket.png)
 
 
 
@@ -117,7 +161,7 @@ Un diagramme de Gantt est utilisé pour suivre l'avancement des tâches.
 
 ---
 
-## 7. Conclusion
+## 6. Conclusion
 Hookshield est une solution complète pour la détection et la gestion des emails de phishing, combinant des technologies modernes pour offrir une protection efficace contre les cyberattaques.
 
 **Contact & Support**
