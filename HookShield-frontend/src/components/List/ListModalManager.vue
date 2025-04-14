@@ -245,7 +245,7 @@ export default {
         } else if (this.listname === 'Whitelist') {
             endpoint = '/whitelist';
         } else if (this.listname === 'Blacklist Perso') {
-            endpoint = '/blacklist';
+            endpoint = '/user_blacklist';
         }
         const response = await axiosInstance.delete(`${endpoint}?email=${encodeURIComponent(this.selectedEmail.address)}`)
         if (!response.ok) {

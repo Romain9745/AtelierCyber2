@@ -123,3 +123,16 @@ def delete_from_whitelist(email: str, db: Session = Depends(get_db)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     
+@router.delete('/user_blacklist')
+def delete_from_user_blacklist(email: str,user: Annotated[UserInfo,Depends(get_current_user)], db: Session = Depends(get_db)):
+    try:
+        entry = db.query(BlacklistInDb).filter(and_(BlacklistInDb.email == email, BlacklistInDb.user_email == user.email,BlacklistInDb.main_blacklist== False)).first()
+        if not entry:
+            raise HTTPException(status_code=404, detail="Email non trouvé dans la blacklist de l'utilisateur")
+        
+        db.delete(entry)
+        db.commit()
+        return {"message": "Email supprimé de la blacklist de l'utilisateur"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    
