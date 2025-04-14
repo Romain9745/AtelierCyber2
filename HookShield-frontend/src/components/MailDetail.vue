@@ -96,7 +96,27 @@
           {{ email_body }}
         </div>
       </div>
-    </div>
+
+      <div style="margin-top: 16px; border-top: 1px solid #e5e7eb; padding-top: 16px;">
+        <div style="display: flex; align-items: flex-start; gap: 12px;">
+          <span style="font-weight: 600; color: #1f2937; min-width: 70px;">Explication :</span>
+        </div>
+        <div style="
+          background-color: #f3f4f6;
+          border: 1px solid #e5e7eb;
+          border-radius: 8px;
+          padding: 16px;
+          max-height: 200px;
+          overflow-y: auto;
+          font-size: 0.95rem;
+          line-height: 1.6;
+          margin-top: 8px;
+          color: #1f2937;
+        ">
+          {{ selectedEmail.blockReason }}
+        </div>
+      </div>
+      </div>  
 
     <div style="margin-top: 24px; display: flex; flex-direction: column; gap: 12px;">
         <template v-if="!showTicketForm">
