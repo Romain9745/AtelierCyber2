@@ -23,8 +23,8 @@
   </div>
   
   <div class="flex items-center gap-4">
-    <span class="text-xl font-semibold text-gray-900 dark:text-white">Nombre de faux positifs : </span>
-    <span class="text-xl font-semibold text-red-500">{{ globalStats.total_mails_blocked }}</span>
+    <span class="text-xl font-semibold text-gray-900 dark:text-white">Nombre de faux négatif : </span>
+    <span class="text-xl font-semibold text-red-500">{{ globalStats.total_false_negative }}</span>
   </div>
   
   <div class="flex items-center gap-4">

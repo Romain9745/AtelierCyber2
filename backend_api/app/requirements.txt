@@ -1,4 +1,4 @@
-fastapi
+fastapi[standard]
 uvicorn
 imaplib2
 imapclient
@@ -17,3 +17,4 @@ httpx
 google-api-python-client
 fernet
 python-dotenv
+aiohttp

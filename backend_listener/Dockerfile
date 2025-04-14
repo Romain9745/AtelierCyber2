@@ -5,16 +5,13 @@ FROM python:3.11-slim
 WORKDIR /app
 
 # Copy requirements file and install dependencies
-COPY requirements.txt .
+COPY /app/requirements.txt .
 
 # Install dependencies
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install -r requirements.txt
 
 # Copy the rest of the application code
-COPY . .
-
-# Expose the port your FastAPI app runs on
-EXPOSE 8000
+COPY ./app .
 
 # Define the command to run your FastAPI app
-CMD ["uvicorn", "main:app", "--reload", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["python3", "main.py"]

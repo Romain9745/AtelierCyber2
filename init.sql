@@ -106,14 +106,14 @@ CREATE TABLE notifications (
 
 CREATE TABLE blacklist (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    user_email VARCHAR(255),
-    email VARCHAR(100) NOT NULL UNIQUE,
+    user_email VARCHAR(255) NOT NULL,
+    email VARCHAR(100) NOT NULL,
     reason TEXT NOT NULL,
     added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     main_blacklist BOOLEAN DEFAULT FALSE,
-    UNIQUE(user_email, email),
-    CONSTRAINT fk_user_email FOREIGN KEY (user_email) REFERENCES users(email),
-    CONSTRAINT chk_email CHECK (email LIKE '%@%.%')
+    CONSTRAINT uix_user_email_email UNIQUE(user_email, email),
+    CONSTRAINT chk_email CHECK (email LIKE '%@%.%'),
+    FOREIGN KEY (user_email) REFERENCES users(email) ON DELETE CASCADE
 );
 
 
@@ -162,3 +162,18 @@ CREATE TABLE user_stats (
     last_action TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
+
+-- tickets table
+CREATE TABLE tickets (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    mail_uid INT NOT NULL,
+    user_id INT NOT NULL,
+    user_explanation TEXT NOT NULL,
+    state INT DEFAULT 1,
+    made_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    last_modification_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (mail_uid) REFERENCES email_analyses(id) ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+

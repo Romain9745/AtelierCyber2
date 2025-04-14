@@ -53,16 +53,15 @@ class BlacklistInDb(Base):
     __tablename__ = 'blacklist'
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    user_email = Column(String(255), ForeignKey('users.email', ondelete="CASCADE"), nullable=False)  # Référence à users.email
+    user_email = Column(String(255), ForeignKey('users.email', ondelete="CASCADE"), nullable=False)
     email = Column(String(100), nullable=False)
-    reason = Column(Text, nullable=False)  # Si reason est TEXT dans la table SQL
+    reason = Column(Text, nullable=False)
     added_at = Column(DateTime, default=func.now())
     main_blacklist = Column(Boolean, default=False)
 
-    # Contrainte d'intégrité et unicité
     __table_args__ = (
         CheckConstraint("email LIKE '%@%.%'", name='chk_email_format'),
-        UniqueConstraint('user_email', 'email', name='unique_user_email')  # Assurer l'unicité de la combinaison user_email + email
+        UniqueConstraint('user_email', 'email', name='uix_user_email_email'),
     )
 
     user = relationship("UserInDB", back_populates="blacklists")
@@ -102,6 +101,7 @@ class MailsInDb(Base):
     folder_id = Column(Integer, ForeignKey('email_folders.id', ondelete='CASCADE'), nullable=False)
 
     source_email = Column(String, ForeignKey('email_accounts.email', ondelete='CASCADE'))
+    ticket = relationship('TicketInDB', backref='email_analyses')
     __table_args__ = (
         CheckConstraint("recipient LIKE '%@%.%'", name='chk_recipient_email_format'),
         CheckConstraint("source LIKE '%@%.%'", name='chk_source_email_format'),
@@ -151,3 +151,16 @@ class FileSignatureinDB(Base):
     detected_malware = Column(Boolean, default=False)
     detected_at = Column(DateTime, default=func.current_timestamp())
     folder_id = Column(Integer, ForeignKey('email_folders.id', ondelete='CASCADE'), nullable=False)
+    
+class TicketInDB(Base):
+    __tablename__ = 'tickets'
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    mail_uid = Column(Integer, ForeignKey('email_analyses.id', ondelete='CASCADE'), nullable=False)
+    user_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    user_explanation = Column(Text, nullable=False)
+    state = Column(Integer, default=1)
+    made_at = Column(TIMESTAMP, server_default=func.now())
+    last_modification_at = Column(TIMESTAMP, server_default=func.now())
+
+    user = relationship('UserInDB', backref='tickets')
+    mail = relationship('MailsInDb', backref='tickets')
