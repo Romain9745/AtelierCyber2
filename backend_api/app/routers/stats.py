@@ -144,7 +144,7 @@ def get_user_stats(user_email: str, db) -> UserStats:
         user_id=user_stats.user_id,
         total_reports=user_stats.total_reports,
         mail_analyzed=user_stats.mail_analyzed,
-        mail_authentic=user_stats.mail_authentic,
+        mail_authentic=user_stats.mail_authentic, 
         mail_blocked=user_stats.mails_blocked,
         last_action=user_stats.last_action
     )

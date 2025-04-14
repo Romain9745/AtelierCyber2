@@ -6,7 +6,7 @@ from email import policy
 from bs4 import BeautifulSoup
 import imaplib
 from datetime import datetime
-from db.models import MailsInDb, EmailAccountinDB, UserStatsinDB, GlobalStatsinDB, TicketInDB
+from db.models import MailsInDb, EmailAccountinDB, UserStatsinDB, GlobalStatsinDB, TicketInDB, UserInDB
 import email
 import asyncio
 from email.utils import parseaddr, parsedate_tz, mktime_tz
@@ -53,15 +53,22 @@ async def check_mail(email: Email, mail: str):
             
             # Récupérer le nouvel ID de l'email
             email.email_id=get_new_uid(client)
+
+            user = db.query(UserInDB).join(EmailAccountinDB, EmailAccountinDB.added_by == UserInDB.id).filter(EmailAccountinDB.email == mail).first()
+            if not user:
+                raise ValueError("User not found")
+            print("User found: ", user.email)
+            user_id = user.id
+
             
-            db.query(UserStatsinDB).filter(UserStatsinDB.user_id == email_analys.user_account_id).update({
+            db.query(UserStatsinDB).filter(UserStatsinDB.user_id == user_id).update({
                 UserStatsinDB.mails_blocked: UserStatsinDB.mails_blocked + 1
             })
             global_stats = db.query(GlobalStatsinDB).first()
             if global_stats:
                 global_stats.total_mails_blocked += 1
         else:
-            db.query(UserStatsinDB).filter(UserStatsinDB.user_id == email_analys.user_account_id).update({
+            db.query(UserStatsinDB).filter(UserStatsinDB.user_id == user_id).update({
                 UserStatsinDB.mail_authentic: UserStatsinDB.mail_authentic + 1
             })
             global_stats = db.query(GlobalStatsinDB).first()
@@ -88,7 +95,7 @@ async def check_mail(email: Email, mail: str):
         if global_stats:
             global_stats.total_mail_analyzed += 1
 
-        db.query(UserStatsinDB).filter(UserStatsinDB.user_id == email_analys.user_account_id).update({
+        db.query(UserStatsinDB).filter(UserStatsinDB.user_id == user_id).update({
             UserStatsinDB.mail_analyzed: UserStatsinDB.mail_analyzed + 1
         })
 
